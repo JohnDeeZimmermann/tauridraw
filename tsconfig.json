@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Path aliases for Excalidraw packages */
+    "baseUrl": ".",
+    "paths": {
+      "@excalidraw/common": ["./src/packages/common/src/index.ts"],
+      "@excalidraw/common/*": ["./src/packages/common/src/*"],
+      "@excalidraw/element": ["./src/packages/element/src/index.ts"],
+      "@excalidraw/element/*": ["./src/packages/element/src/*"],
+      "@excalidraw/excalidraw": ["./src/packages/excalidraw/index.tsx"],
+      "@excalidraw/excalidraw/*": ["./src/packages/excalidraw/*"],
+      "@excalidraw/math": ["./src/packages/math/src/index.ts"],
+      "@excalidraw/math/*": ["./src/packages/math/src/*"],
+      "@excalidraw/utils": ["./src/packages/utils/src/index.ts"],
+      "@excalidraw/utils/*": ["./src/packages/utils/src/*"]
+    },
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

@@ -1,0 +1,39 @@
+{
+  "name": "tauridraw",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@excalidraw/random-username": "1.0.0",
+    "@sentry/browser": "9.0.1",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "callsites": "4.2.0",
+    "firebase": "11.3.1",
+    "i18next-browser-languagedetector": "6.1.4",
+    "idb-keyval": "6.0.3",
+    "jotai": "2.11.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "socket.io-client": "4.7.2",
+    "uqr": "0.1.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "5.0.12",
+    "@tauri-apps/cli": "^2",
+    "vite-plugin-ejs": "1.7.0",
+    "vite-plugin-html": "^3.2.2",
+    "vite-plugin-svgr": "4.2.0",
+    "sass": "1.71.1"
+  }
+}

@@ -887,24 +887,7 @@ const ExcalidrawWrapper = () => {
             return null;
           }
 
-          return (
-            <div className="excalidraw-ui-top-right">
-              {excalidrawAPI?.getEditorInterface().formFactor === "desktop" && (
-                <ExcalidrawPlusPromoBanner
-                  isSignedIn={isExcalidrawPlusSignedUser}
-                />
-              )}
-
-              {collabError.message && <CollabError collabError={collabError} />}
-              <LiveCollaborationTrigger
-                isCollaborating={isCollaborating}
-                onSelect={() =>
-                  setShareDialogState({ isOpen: true, type: "share" })
-                }
-                editorInterface={editorInterface}
-              />
-            </div>
-          );
+          return <div className="excalidraw-ui-top-right"></div>;
         }}
         onLinkOpen={(element, event) => {
           if (element.link && isElementLink(element.link)) {

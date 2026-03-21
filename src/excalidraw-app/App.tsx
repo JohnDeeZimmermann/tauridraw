@@ -27,7 +27,13 @@ import {
   isDevEnv,
 } from "@excalidraw/common";
 import polyfill from "@excalidraw/excalidraw/polyfill";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { loadFromBlob } from "@excalidraw/excalidraw/data/blob";
 import { useCallbackRefState } from "@excalidraw/excalidraw/hooks/useCallbackRefState";
 import { t } from "@excalidraw/excalidraw/i18n";
@@ -105,6 +111,7 @@ import {
   saveNativeExcalidrawFile,
   saveNativeExcalidrawFileAs,
 } from "./data/nativeFileSystem";
+import { getLoadedSceneAppState } from "./sceneAppState";
 import { getUseCustomTitlebar } from "./tauri/windowChrome";
 
 polyfill();
@@ -285,6 +292,17 @@ const ExcalidrawWrapper = () => {
 
   const [excalidrawAPI, excalidrawRefCallback] =
     useCallbackRefState<ExcalidrawImperativeAPI>();
+  const getSceneAppStateForCurrentTheme = useEffectEvent(
+    (
+      sceneAppState: RestoredDataState["appState"],
+      name?: AppState["name"],
+    ) =>
+      getLoadedSceneAppState({
+        sceneAppState,
+        editorTheme,
+        name,
+      }),
+  );
 
   useHandleLibrary({
     excalidrawAPI,
@@ -369,7 +387,10 @@ const ExcalidrawWrapper = () => {
               elements: restoreElements(data.scene.elements, null, {
                 repairBindings: true,
               }),
-              appState: restoreAppState(data.scene.appState, null),
+              appState: getSceneAppStateForCurrentTheme(
+                data.scene.appState,
+                data.scene.appState?.name?.trim() || DEFAULT_DOCUMENT_NAME,
+              ),
               captureUpdate: CaptureUpdateAction.IMMEDIATELY,
             });
           }
@@ -458,11 +479,11 @@ const ExcalidrawWrapper = () => {
         }
         excalidrawAPI.updateScene({
           elements: restoredElements,
-          appState: {
-            ...(result.scene.appState || {}),
+          appState: getLoadedSceneAppState({
+            sceneAppState: result.scene.appState,
+            editorTheme,
             name: result.documentName,
-            isLoading: false,
-          },
+          }),
           captureUpdate: CaptureUpdateAction.IMMEDIATELY,
         });
         excalidrawAPI.history.clear();
@@ -473,7 +494,7 @@ const ExcalidrawWrapper = () => {
     } catch (error: any) {
       setErrorMessage(error?.message || "Failed to open file");
     }
-  }, [excalidrawAPI, runAsProgrammaticSceneMutation]);
+  }, [editorTheme, excalidrawAPI, runAsProgrammaticSceneMutation]);
 
   const handleSaveAsDocument = useCallback(async () => {
     if (!excalidrawAPI) {

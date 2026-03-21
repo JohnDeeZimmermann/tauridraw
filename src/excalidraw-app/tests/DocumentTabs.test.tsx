@@ -118,6 +118,44 @@ describe("document tabs", () => {
     );
   });
 
+  it("keeps each tab label when switching away from an opened file", async () => {
+    await render(<ExcalidrawApp />);
+
+    fileSystemMocks.pickNativeExcalidrawOpenPath.mockResolvedValue(
+      "/tmp/opened.excalidraw",
+    );
+    fileSystemMocks.loadNativeExcalidrawFile.mockResolvedValue({
+      filePath: "/tmp/opened.excalidraw",
+      documentName: "opened",
+      scene: {
+        elements: [],
+        appState: null,
+        files: {},
+      },
+    });
+
+    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /opened/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+
+    fireEvent.click(screen.getAllByRole("tab")[0]);
+
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /untitled/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(screen.getByRole("tab", { name: /opened/i })).toHaveTextContent(
+      "opened",
+    );
+  });
+
   it("keeps each tab scene in memory when switching tabs", async () => {
     await render(<ExcalidrawApp />);
 

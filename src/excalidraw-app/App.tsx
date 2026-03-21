@@ -682,13 +682,13 @@ const ExcalidrawWrapper = () => {
     appState: AppState,
     _files: BinaryFiles,
   ) => {
-    if (activeDocumentId) {
+    const isProgrammaticChange = programmaticChangeDepthRef.current > 0;
+
+    if (activeDocumentId && !isProgrammaticChange) {
       const session = documentsRef.current.get(activeDocumentId);
       if (session) {
         session.documentName = normalizeDocumentName(appState.name);
-        if (programmaticChangeDepthRef.current === 0) {
-          session.isDirty = true;
-        }
+        session.isDirty = true;
         documentsRef.current.set(session.id, session);
         syncTabSummary(session);
       }

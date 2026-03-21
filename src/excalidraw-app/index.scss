@@ -3,6 +3,7 @@
 .excalidraw-app {
   --tauri-titlebar-height: 24px;
   --tauri-resize-handle-size: 8px;
+  --tauri-top-resize-handle-height: 3px;
   --tauri-titlebar-bg: linear-gradient(180deg, #f7f8fb 0%, #eceff4 100%);
   --tauri-titlebar-fg: #1c2430;
   --tauri-titlebar-muted: rgba(28, 36, 48, 0.58);
@@ -108,7 +109,7 @@
 }
 
 .tauri-resize-handle--North {
-  height: var(--tauri-resize-handle-size);
+  height: var(--tauri-top-resize-handle-height);
   left: var(--tauri-resize-handle-size);
   right: var(--tauri-resize-handle-size);
   top: 0;
@@ -136,14 +137,14 @@
 }
 
 .tauri-resize-handle--NorthEast {
-  height: var(--tauri-resize-handle-size);
+  height: var(--tauri-top-resize-handle-height);
   right: 0;
   top: 0;
   width: var(--tauri-resize-handle-size);
 }
 
 .tauri-resize-handle--NorthWest {
-  height: var(--tauri-resize-handle-size);
+  height: var(--tauri-top-resize-handle-height);
   left: 0;
   top: 0;
   width: var(--tauri-resize-handle-size);

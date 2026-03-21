@@ -1,6 +1,5 @@
 import {
   closeWindow,
-  startWindowDrag,
   setWindowCursor,
   toggleWindowMaximize,
 } from "../tauri/windowChrome";
@@ -27,13 +26,11 @@ export const TauriTitleBar = ({
         className="tauri-titlebar__drag-region"
         data-tauri-drag-region
         onMouseDown={(event) => {
-          if (event.button !== 0 || event.detail > 1) {
+          if (event.button !== 0 || event.detail < 2) {
             return;
           }
-          void startWindowDrag();
-        }}
-        onDoubleClick={(event) => {
           event.preventDefault();
+          event.stopPropagation();
           void toggleWindowMaximize();
         }}
         onMouseEnter={() => {

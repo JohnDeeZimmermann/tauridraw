@@ -311,7 +311,7 @@ describe("document tabs", () => {
     );
   });
 
-  it("starts with one tab and creates a second untitled tab on new", async () => {
+  it("reuses the untouched initial tab on new", async () => {
     await render(<ExcalidrawApp />);
 
     expect(screen.getAllByRole("tab")).toHaveLength(1);
@@ -322,8 +322,8 @@ describe("document tabs", () => {
 
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
 
-    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
-    expect(screen.getAllByRole("tab")[1]).toHaveAttribute(
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(1));
+    expect(screen.getByRole("tab", { name: /untitled/i })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -347,6 +347,10 @@ describe("document tabs", () => {
   it("opens a file in a new tab and focuses the existing tab on duplicate open", async () => {
     await render(<ExcalidrawApp />);
 
+    API.updateScene({
+      appState: { name: "seed" },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
 
@@ -485,6 +489,10 @@ describe("document tabs", () => {
   it("keeps each tab label when switching away from an opened file", async () => {
     await render(<ExcalidrawApp />);
 
+    API.updateScene({
+      appState: { name: "seed" },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
 

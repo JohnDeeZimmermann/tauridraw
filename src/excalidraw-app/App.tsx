@@ -570,7 +570,7 @@ const ExcalidrawWrapper = () => {
     [],
   );
 
-  const shouldReuseActivePlaceholderTabForOpen = useCallback(() => {
+  const shouldReuseActivePlaceholderTab = useCallback(() => {
     if (!activeDocumentId || tabOrder.length !== 1) {
       return false;
     }
@@ -878,9 +878,18 @@ const ExcalidrawWrapper = () => {
     if (!excalidrawAPI) {
       return;
     }
+    if (shouldReuseActivePlaceholderTab()) {
+      return;
+    }
+
     commitActiveTabSnapshot();
     await createAndActivateBlankTab();
-  }, [commitActiveTabSnapshot, createAndActivateBlankTab, excalidrawAPI]);
+  }, [
+    commitActiveTabSnapshot,
+    createAndActivateBlankTab,
+    excalidrawAPI,
+    shouldReuseActivePlaceholderTab,
+  ]);
 
   const handleOpenDocument = useCallback(async () => {
     if (!excalidrawAPI) {
@@ -906,7 +915,7 @@ const ExcalidrawWrapper = () => {
       const result = await loadNativeExcalidrawFile(filePath);
       const snapshot = createSnapshotFromScene(result.scene);
 
-      if (shouldReuseActivePlaceholderTabForOpen() && activeDocumentId) {
+      if (shouldReuseActivePlaceholderTab() && activeDocumentId) {
         const session = createDocumentTabSession({
           id: activeDocumentId,
           filePath: result.filePath,
@@ -937,7 +946,7 @@ const ExcalidrawWrapper = () => {
     excalidrawAPI,
     findOpenTabByPath,
     loadTabIntoEditor,
-    shouldReuseActivePlaceholderTabForOpen,
+    shouldReuseActivePlaceholderTab,
     upsertDocumentSession,
   ]);
 

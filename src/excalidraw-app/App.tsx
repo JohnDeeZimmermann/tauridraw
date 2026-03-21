@@ -296,6 +296,15 @@ const isSnapshotDirty = (
   return currentSerialized !== savedSerialized;
 };
 
+const isPlaceholderDocumentSession = (session: DocumentTabSession) => {
+  return (
+    session.filePath === null &&
+    !session.isDirty &&
+    session.snapshot.elements.length === 0 &&
+    Object.keys(session.snapshot.files).length === 0
+  );
+};
+
 const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [useCustomTitlebar, setUseCustomTitlebar] = useState(false);
@@ -534,6 +543,22 @@ const ExcalidrawWrapper = () => {
     return null;
   }, []);
 
+  const shouldReuseActivePlaceholderTabForOpen = useCallback(() => {
+    if (!activeDocumentId || tabOrder.length !== 1) {
+      return false;
+    }
+
+    const session = documentsRef.current.get(activeDocumentId);
+    if (
+      !session ||
+      !isPlaceholderDocumentSession(session)
+    ) {
+      return false;
+    }
+
+    return true;
+  }, [activeDocumentId, tabOrder]);
+
   const saveDocumentById = useCallback(
     async (
       documentId: DocumentTabId,
@@ -653,7 +678,7 @@ const ExcalidrawWrapper = () => {
         return;
       }
 
-      if (initialSession.isDirty) {
+      if (!isPlaceholderDocumentSession(initialSession)) {
         return;
       }
 
@@ -838,10 +863,25 @@ const ExcalidrawWrapper = () => {
       commitActiveTabSnapshot();
 
       const result = await loadNativeExcalidrawFile(filePath);
+      const snapshot = createSnapshotFromScene(result.scene);
+
+      if (shouldReuseActivePlaceholderTabForOpen() && activeDocumentId) {
+        const session = createDocumentTabSession({
+          id: activeDocumentId,
+          filePath: result.filePath,
+          documentName: result.documentName,
+          snapshot,
+        });
+
+        upsertDocumentSession(session);
+        await loadTabIntoEditor(session.id);
+        return;
+      }
+
       const session = createDocumentTabSession({
         filePath: result.filePath,
         documentName: result.documentName,
-        snapshot: createSnapshotFromScene(result.scene),
+        snapshot,
       });
 
       upsertDocumentSession(session);
@@ -856,6 +896,7 @@ const ExcalidrawWrapper = () => {
     excalidrawAPI,
     findOpenTabByPath,
     loadTabIntoEditor,
+    shouldReuseActivePlaceholderTabForOpen,
     upsertDocumentSession,
   ]);
 

@@ -99,6 +99,80 @@ describe("document tabs", () => {
   it("opens a file in a new tab and focuses the existing tab on duplicate open", async () => {
     await render(<ExcalidrawApp />);
 
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
+
+    fileSystemMocks.pickNativeExcalidrawOpenPath.mockResolvedValue(
+      "/tmp/opened.excalidraw",
+    );
+    fileSystemMocks.loadNativeExcalidrawFile.mockResolvedValue({
+      filePath: "/tmp/opened.excalidraw",
+      documentName: "opened",
+      scene: {
+        elements: [],
+        appState: null,
+        files: {},
+      },
+    });
+
+    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /opened/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+
+    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(fileSystemMocks.loadNativeExcalidrawFile).toHaveBeenCalledTimes(1),
+    );
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: /opened/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("reuses the untouched initial tab when opening a file", async () => {
+    await render(<ExcalidrawApp />);
+
+    fileSystemMocks.pickNativeExcalidrawOpenPath.mockResolvedValue(
+      "/tmp/opened.excalidraw",
+    );
+    fileSystemMocks.loadNativeExcalidrawFile.mockResolvedValue({
+      filePath: "/tmp/opened.excalidraw",
+      documentName: "opened",
+      scene: {
+        elements: [],
+        appState: null,
+        files: {},
+      },
+    });
+
+    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /opened/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(screen.getAllByRole("tab")).toHaveLength(1);
+  });
+
+  it("keeps the initial tab when it has changes before opening a file", async () => {
+    await render(<ExcalidrawApp />);
+
+    const rectangle = API.createElement({ type: "rectangle", width: 120 });
+    API.updateScene({
+      elements: [rectangle],
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
     fileSystemMocks.pickNativeExcalidrawOpenPath.mockResolvedValue(
       "/tmp/opened.excalidraw",
     );
@@ -121,21 +195,50 @@ describe("document tabs", () => {
       ),
     );
     expect(screen.getAllByRole("tab")).toHaveLength(2);
+  });
+
+  it("keeps the opened file tab when creating a new document after reusing the initial tab", async () => {
+    await render(<ExcalidrawApp />);
+
+    fileSystemMocks.pickNativeExcalidrawOpenPath.mockResolvedValue(
+      "/tmp/opened.excalidraw",
+    );
+    fileSystemMocks.loadNativeExcalidrawFile.mockResolvedValue({
+      filePath: "/tmp/opened.excalidraw",
+      documentName: "opened",
+      scene: {
+        elements: [],
+        appState: null,
+        files: {},
+      },
+    });
 
     fireEvent.keyDown(window, { key: "o", ctrlKey: true });
 
     await waitFor(() =>
-      expect(fileSystemMocks.loadNativeExcalidrawFile).toHaveBeenCalledTimes(1),
+      expect(screen.getByRole("tab", { name: /opened/i })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
     );
-    expect(screen.getAllByRole("tab")).toHaveLength(2);
-    expect(screen.getByRole("tab", { name: /opened/i })).toHaveAttribute(
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
+    expect(screen.getAllByRole("tab")[1]).toHaveAttribute(
       "aria-selected",
       "true",
+    );
+    expect(screen.getByRole("tab", { name: /opened/i })).toHaveTextContent(
+      "opened",
     );
   });
 
   it("keeps each tab label when switching away from an opened file", async () => {
     await render(<ExcalidrawApp />);
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
 
     fileSystemMocks.pickNativeExcalidrawOpenPath.mockResolvedValue(
       "/tmp/opened.excalidraw",
@@ -162,7 +265,7 @@ describe("document tabs", () => {
     fireEvent.click(screen.getAllByRole("tab")[0]);
 
     await waitFor(() =>
-      expect(screen.getByRole("tab", { name: /untitled/i })).toHaveAttribute(
+      expect(screen.getAllByRole("tab")[0]).toHaveAttribute(
         "aria-selected",
         "true",
       ),

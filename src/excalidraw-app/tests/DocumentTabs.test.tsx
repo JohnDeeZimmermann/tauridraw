@@ -48,6 +48,105 @@ vi.mock("../data/nativeFileSystem", () => {
 });
 
 describe("document tabs", () => {
+  const setTabRects = (tabWidth = 120, tabHeight = 32, startLeft = 16) => {
+    const tabElements = Array.from(
+      document.querySelectorAll<HTMLElement>(".document-tabs__tab"),
+    );
+
+    tabElements.forEach((tabElement, index) => {
+      const left = startLeft + index * tabWidth;
+      const right = left + tabWidth;
+      const top = 8;
+      const bottom = top + tabHeight;
+
+      Object.defineProperty(tabElement, "getBoundingClientRect", {
+        configurable: true,
+        value: () =>
+          ({
+            x: left,
+            y: top,
+            left,
+            right,
+            top,
+            bottom,
+            width: tabWidth,
+            height: tabHeight,
+            toJSON: () => ({}),
+          }) as DOMRect,
+      });
+    });
+  };
+
+  const dragTabByIndex = (
+    sourceIndex: number,
+    targetIndex: number,
+    position: "before" | "after",
+  ) => {
+    const tabButtons = screen.getAllByRole("tab");
+    const sourceTab = tabButtons[sourceIndex];
+    const tabElements = Array.from(
+      document.querySelectorAll<HTMLElement>(".document-tabs__tab"),
+    );
+    const targetTab = tabElements[targetIndex];
+    const targetRect = targetTab.getBoundingClientRect();
+    const targetX =
+      position === "before" ? targetRect.left + 2 : targetRect.right - 2;
+    const targetY = targetRect.top + targetRect.height / 2;
+
+    fireEvent.pointerDown(sourceTab, {
+      pointerId: 101,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 101,
+      pointerType: "mouse",
+      clientX: 30,
+      clientY: 10,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 101,
+      pointerType: "mouse",
+      clientX: targetX,
+      clientY: targetY,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 101,
+      pointerType: "mouse",
+      clientX: targetX,
+      clientY: targetY,
+    });
+  };
+
+  const createNamedTabs = async () => {
+    API.updateScene({
+      appState: { name: "one" },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
+    API.updateScene({
+      appState: { name: "two" },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(3));
+    API.updateScene({
+      appState: { name: "three" },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(
+        ["one", "two", "three"],
+      ),
+    );
+  };
+
   beforeEach(() => {
     let storageState: Record<string, string> = {};
     Object.defineProperty(window, "localStorage", {
@@ -442,6 +541,68 @@ describe("document tabs", () => {
 
     await waitFor(() => expect(window.h.elements).toHaveLength(1));
     expect(window.h.elements[0].id).toBe(rectangle.id);
+  });
+
+  it("reorders tabs when dragging the active tab and keeps it active", async () => {
+    await render(<ExcalidrawApp />);
+    await createNamedTabs();
+    setTabRects();
+
+    dragTabByIndex(2, 0, "before");
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(
+        ["three", "one", "two"],
+      ),
+    );
+    expect(screen.getByRole("tab", { name: "three" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("reorders inactive tabs without switching active tab", async () => {
+    await render(<ExcalidrawApp />);
+    await createNamedTabs();
+
+    fireEvent.click(screen.getByRole("tab", { name: "two" }));
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "two" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+
+    setTabRects();
+    dragTabByIndex(0, 2, "after");
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(
+        ["two", "three", "one"],
+      ),
+    );
+    expect(screen.getByRole("tab", { name: "two" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("does not reorder when dropping into an adjacent no-op position", async () => {
+    await render(<ExcalidrawApp />);
+    await createNamedTabs();
+    setTabRects();
+
+    dragTabByIndex(1, 0, "after");
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(
+        ["one", "two", "three"],
+      ),
+    );
+    expect(screen.getByRole("tab", { name: "three" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it.skip("prompts before closing a dirty tab and replaces the last tab after discard", async () => {

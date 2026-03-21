@@ -265,6 +265,39 @@ const getNextTabIdAfterClose = (
   return tabOrder[closedIndex - 1] ?? null;
 };
 
+const reorderTabOrder = (
+  tabOrder: DocumentTabId[],
+  sourceTabId: DocumentTabId,
+  targetTabId: DocumentTabId,
+  position: "before" | "after",
+) => {
+  const sourceIndex = tabOrder.indexOf(sourceTabId);
+  const targetIndex = tabOrder.indexOf(targetTabId);
+
+  if (sourceIndex < 0 || targetIndex < 0 || sourceTabId === targetTabId) {
+    return tabOrder;
+  }
+
+  const nextTabOrder = tabOrder.filter((tabId) => tabId !== sourceTabId);
+  const insertAtTargetIndex = nextTabOrder.indexOf(targetTabId);
+  if (insertAtTargetIndex < 0) {
+    return tabOrder;
+  }
+
+  const insertionIndex =
+    position === "before" ? insertAtTargetIndex : insertAtTargetIndex + 1;
+  nextTabOrder.splice(insertionIndex, 0, sourceTabId);
+
+  if (
+    nextTabOrder.length === tabOrder.length &&
+    nextTabOrder.every((tabId, index) => tabId === tabOrder[index])
+  ) {
+    return tabOrder;
+  }
+
+  return nextTabOrder;
+};
+
 const isSnapshotDirty = (
   session: DocumentTabSession,
   elements: readonly OrderedExcalidrawElement[],
@@ -1018,6 +1051,16 @@ const ExcalidrawWrapper = () => {
         }}
         onCloseTab={(tabId) => {
           void requestCloseDocument(tabId);
+        }}
+        onReorderTab={(sourceTabId, targetTabId, position) => {
+          setTabOrder((previousTabOrder) =>
+            reorderTabOrder(
+              previousTabOrder,
+              sourceTabId,
+              targetTabId,
+              position,
+            ),
+          );
         }}
       />
       <div className="excalidraw-app__content">

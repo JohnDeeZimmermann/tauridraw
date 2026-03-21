@@ -1,5 +1,203 @@
 @import "../packages/excalidraw/css/variables.module.scss";
 
+.excalidraw-app {
+  --tauri-titlebar-height: 24px;
+  --tauri-resize-handle-size: 8px;
+  --tauri-titlebar-bg: linear-gradient(180deg, #f7f8fb 0%, #eceff4 100%);
+  --tauri-titlebar-fg: #1c2430;
+  --tauri-titlebar-muted: rgba(28, 36, 48, 0.58);
+  --tauri-titlebar-border: rgba(25, 36, 52, 0.1);
+  --tauri-titlebar-dot: linear-gradient(135deg, #18b6a6 0%, #4a77ff 100%);
+  --tauri-titlebar-close-hover: #d93025;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+}
+
+.excalidraw-app__content {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tauri-titlebar {
+  display: flex;
+  align-items: center;
+  height: var(--tauri-titlebar-height);
+  background: var(--tauri-titlebar-bg);
+  color: var(--tauri-titlebar-fg);
+  border-bottom: 1px solid var(--tauri-titlebar-border);
+  user-select: none;
+}
+
+.tauri-titlebar[data-theme="dark"] {
+  --tauri-titlebar-bg: linear-gradient(180deg, #202630 0%, #171c24 100%);
+  --tauri-titlebar-fg: #eef3fb;
+  --tauri-titlebar-muted: rgba(238, 243, 251, 0.6);
+  --tauri-titlebar-border: rgba(255, 255, 255, 0.08);
+  --tauri-titlebar-dot: linear-gradient(135deg, #38d0c3 0%, #6e8eff 100%);
+}
+
+.tauri-titlebar__drag-region {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tauri-titlebar__identity {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tauri-titlebar__dot {
+  background: var(--tauri-titlebar-dot);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+  flex: 0 0 auto;
+  height: 9px;
+  width: 9px;
+}
+
+.tauri-titlebar__text {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tauri-titlebar__title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.tauri-titlebar__subtitle {
+  color: var(--tauri-titlebar-muted);
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tauri-resize-handles {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 30;
+}
+
+.tauri-resize-handle {
+  pointer-events: auto;
+  position: absolute;
+}
+
+.tauri-resize-handle--North {
+  height: var(--tauri-resize-handle-size);
+  left: var(--tauri-resize-handle-size);
+  right: var(--tauri-resize-handle-size);
+  top: 0;
+}
+
+.tauri-resize-handle--South {
+  bottom: 0;
+  height: var(--tauri-resize-handle-size);
+  left: var(--tauri-resize-handle-size);
+  right: var(--tauri-resize-handle-size);
+}
+
+.tauri-resize-handle--East {
+  bottom: var(--tauri-resize-handle-size);
+  right: 0;
+  top: var(--tauri-titlebar-height);
+  width: var(--tauri-resize-handle-size);
+}
+
+.tauri-resize-handle--West {
+  bottom: var(--tauri-resize-handle-size);
+  left: 0;
+  top: var(--tauri-titlebar-height);
+  width: var(--tauri-resize-handle-size);
+}
+
+.tauri-resize-handle--NorthEast {
+  height: var(--tauri-resize-handle-size);
+  right: 0;
+  top: 0;
+  width: var(--tauri-resize-handle-size);
+}
+
+.tauri-resize-handle--NorthWest {
+  height: var(--tauri-resize-handle-size);
+  left: 0;
+  top: 0;
+  width: var(--tauri-resize-handle-size);
+}
+
+.tauri-resize-handle--SouthEast {
+  bottom: 0;
+  height: var(--tauri-resize-handle-size);
+  right: 0;
+  width: var(--tauri-resize-handle-size);
+}
+
+.tauri-resize-handle--SouthWest {
+  bottom: 0;
+  height: var(--tauri-resize-handle-size);
+  left: 0;
+  width: var(--tauri-resize-handle-size);
+}
+
+.tauri-titlebar__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: calc(var(--tauri-titlebar-height) - 4px);
+  margin-right: 2px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.tauri-titlebar__close:hover {
+  background: var(--tauri-titlebar-close-hover);
+  color: #fff;
+}
+
+.tauri-titlebar__close:active {
+  transform: scale(0.96);
+}
+
+.tauri-titlebar__close:focus-visible {
+  outline: 2px solid var(--color-brand-active);
+  outline-offset: -2px;
+}
+
 .excalidraw {
   --color-primary-contrast-offset: #625ee0; // to offset Chubb illusion
 

@@ -98,11 +98,14 @@ import DebugCanvas, {
 } from "./components/DebugCanvas";
 import "./index.scss";
 import { AppSidebar } from "./components/AppSidebar";
+import { TauriResizeHandles } from "./components/TauriResizeHandles";
+import { TauriTitleBar } from "./components/TauriTitleBar";
 import {
   openNativeExcalidrawFile,
   saveNativeExcalidrawFile,
   saveNativeExcalidrawFileAs,
 } from "./data/nativeFileSystem";
+import { getUseCustomTitlebar } from "./tauri/windowChrome";
 
 polyfill();
 
@@ -239,6 +242,7 @@ const initializeScene = async (opts: {
 
 const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
+  const [useCustomTitlebar, setUseCustomTitlebar] = useState(false);
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
@@ -265,6 +269,18 @@ const ExcalidrawWrapper = () => {
     setTimeout(() => {
       trackEvent("load", "version", getVersion());
     }, VERSION_TIMEOUT);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void getUseCustomTitlebar().then((enabled) => {
+      if (active) {
+        setUseCustomTitlebar(enabled);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const [excalidrawAPI, excalidrawRefCallback] =
@@ -585,8 +601,17 @@ const ExcalidrawWrapper = () => {
   }
 
   return (
-    <div style={{ height: "100%" }} className="excalidraw-app">
-      <Excalidraw
+    <div className="excalidraw-app">
+      {useCustomTitlebar && (
+        <TauriTitleBar
+          title="tauridraw"
+          subtitle={documentName}
+          theme={editorTheme}
+        />
+      )}
+      {useCustomTitlebar && <TauriResizeHandles />}
+      <div className="excalidraw-app__content">
+        <Excalidraw
         excalidrawAPI={excalidrawRefCallback}
         onChange={onChange}
         initialData={initialStatePromiseRef.current.promise}
@@ -795,7 +820,8 @@ const ExcalidrawWrapper = () => {
             ref={debugCanvasRef}
           />
         )}
-      </Excalidraw>
+        </Excalidraw>
+      </div>
     </div>
   );
 };

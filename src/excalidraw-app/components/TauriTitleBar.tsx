@@ -1,26 +1,39 @@
+import type { CSSProperties } from "react";
+
 import {
   closeWindow,
   setWindowCursor,
   toggleWindowMaximize,
 } from "../tauri/windowChrome";
+import type { WindowChromeColors } from "../windowChromeColors";
 
 type TauriTitleBarProps = {
   title: string;
   subtitle?: string;
-  theme: "light" | "dark";
+  chromeColors: WindowChromeColors;
 };
 
 export const TauriTitleBar = ({
   title,
   subtitle,
-  theme,
+  chromeColors,
 }: TauriTitleBarProps) => {
   return (
     <div
       className="tauri-titlebar"
-      data-theme={theme}
       role="banner"
       aria-label="Window title bar"
+      style={
+        {
+          "--tauri-titlebar-bg": chromeColors.background,
+          "--tauri-titlebar-fg": chromeColors.foreground,
+          "--tauri-titlebar-muted": chromeColors.mutedForeground,
+          "--tauri-titlebar-border": chromeColors.border,
+          "--tauri-titlebar-dot": chromeColors.dotBackground,
+          "--tauri-titlebar-dot-ring": chromeColors.dotRing,
+          "--tauri-titlebar-close-hover": chromeColors.closeHoverBackground,
+        } as CSSProperties
+      }
     >
       <div
         className="tauri-titlebar__drag-region"

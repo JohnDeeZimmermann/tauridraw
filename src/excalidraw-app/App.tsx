@@ -1,7 +1,4 @@
-import {
-  Excalidraw,
-  CaptureUpdateAction,
-} from "@excalidraw/excalidraw";
+import { Excalidraw, CaptureUpdateAction } from "@excalidraw/excalidraw";
 import { trackEvent } from "@excalidraw/excalidraw/analytics";
 import {
   CommandPalette,
@@ -22,12 +19,7 @@ import {
   isDevEnv,
 } from "@excalidraw/common";
 import polyfill from "@excalidraw/excalidraw/polyfill";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadFromBlob } from "@excalidraw/excalidraw/data/blob";
 import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
 import { useCallbackRefState } from "@excalidraw/excalidraw/hooks/useCallbackRefState";
@@ -109,6 +101,7 @@ import {
 } from "./data/documentTabs";
 import { getLoadedSceneAppState } from "./sceneAppState";
 import { getUseCustomTitlebar } from "./tauri/windowChrome";
+import { getWindowChromeColors } from "./windowChromeColors";
 
 import type {
   DocumentSceneSnapshot,
@@ -197,9 +190,7 @@ const markSavedImageElements = (
 };
 
 const initializeScene = async (): Promise<
-  { scene: ExcalidrawInitialDataState | null } & (
-    { isExternalScene: boolean }
-  )
+  { scene: ExcalidrawInitialDataState | null } & { isExternalScene: boolean }
 > => {
   const externalUrlMatch = window.location.hash.match(/^#url=(.*)$/);
 
@@ -349,10 +340,7 @@ const ExcalidrawWrapper = () => {
   const [excalidrawAPI, excalidrawRefCallback] =
     useCallbackRefState<ExcalidrawImperativeAPI>();
   const getSceneAppStateForCurrentTheme = useCallback(
-    (
-      sceneAppState: RestoredDataState["appState"],
-      name?: AppState["name"],
-    ) =>
+    (sceneAppState: RestoredDataState["appState"], name?: AppState["name"]) =>
       getLoadedSceneAppState({
         sceneAppState,
         editorTheme,
@@ -380,8 +368,10 @@ const ExcalidrawWrapper = () => {
   const [tabOrder, setTabOrder] = useState<DocumentTabId[]>([
     initialDocumentRef.current.id,
   ]);
-  const [activeDocumentId, setActiveDocumentId] = useState<DocumentTabId | null>(
-    initialDocumentRef.current.id,
+  const [activeDocumentId, setActiveDocumentId] =
+    useState<DocumentTabId | null>(initialDocumentRef.current.id);
+  const [activeViewBackgroundColor, setActiveViewBackgroundColor] = useState(
+    initialDocumentRef.current.snapshot.appState.viewBackgroundColor,
   );
   const [tabSummaries, setTabSummaries] = useState<
     Record<DocumentTabId, DocumentTabSummary>
@@ -492,6 +482,7 @@ const ExcalidrawWrapper = () => {
       }
 
       const snapshot = cloneDocumentSceneSnapshot(session.snapshot);
+      setActiveViewBackgroundColor(snapshot.appState.viewBackgroundColor);
 
       await runAsProgrammaticSceneMutation(async () => {
         excalidrawAPI.resetScene({ resetLoadingState: true });
@@ -531,17 +522,20 @@ const ExcalidrawWrapper = () => {
     return session.id;
   }, [loadTabIntoEditor, upsertDocumentSession]);
 
-  const findOpenTabByPath = useCallback((filePath: string, excludeId?: string) => {
-    for (const [documentId, session] of documentsRef.current.entries()) {
-      if (documentId === excludeId) {
-        continue;
+  const findOpenTabByPath = useCallback(
+    (filePath: string, excludeId?: string) => {
+      for (const [documentId, session] of documentsRef.current.entries()) {
+        if (documentId === excludeId) {
+          continue;
+        }
+        if (session.filePath === filePath) {
+          return session;
+        }
       }
-      if (session.filePath === filePath) {
-        return session;
-      }
-    }
-    return null;
-  }, []);
+      return null;
+    },
+    [],
+  );
 
   const shouldReuseActivePlaceholderTabForOpen = useCallback(() => {
     if (!activeDocumentId || tabOrder.length !== 1) {
@@ -549,10 +543,7 @@ const ExcalidrawWrapper = () => {
     }
 
     const session = documentsRef.current.get(activeDocumentId);
-    if (
-      !session ||
-      !isPlaceholderDocumentSession(session)
-    ) {
+    if (!session || !isPlaceholderDocumentSession(session)) {
       return false;
     }
 
@@ -673,7 +664,9 @@ const ExcalidrawWrapper = () => {
 
     initializeScene().then((data) => {
       initialStatePromiseRef.current.promise.resolve(data.scene);
-      const initialSession = documentsRef.current.get(initialDocumentRef.current.id);
+      const initialSession = documentsRef.current.get(
+        initialDocumentRef.current.id,
+      );
       if (!initialSession) {
         return;
       }
@@ -690,6 +683,11 @@ const ExcalidrawWrapper = () => {
       initialSession.snapshot = createSnapshotFromScene(data.scene);
       documentsRef.current.set(initialSession.id, initialSession);
       syncTabSummary(initialSession);
+      if (activeDocumentId === initialSession.id) {
+        setActiveViewBackgroundColor(
+          initialSession.snapshot.appState.viewBackgroundColor,
+        );
+      }
     });
 
     const onHashChange = async (event: HashChangeEvent) => {
@@ -705,7 +703,9 @@ const ExcalidrawWrapper = () => {
             createDocumentTabSession({ id: targetId });
 
           session.filePath = null;
-          session.documentName = normalizeDocumentName(data.scene?.appState?.name);
+          session.documentName = normalizeDocumentName(
+            data.scene?.appState?.name,
+          );
           session.isDirty = false;
           session.snapshot = createSnapshotFromScene(data.scene);
           upsertDocumentSession(session);
@@ -723,13 +723,21 @@ const ExcalidrawWrapper = () => {
     return () => {
       window.removeEventListener(EVENT.HASHCHANGE, onHashChange, false);
     };
-  }, [activeDocumentId, excalidrawAPI, loadTabIntoEditor, syncTabSummary, tabOrder, upsertDocumentSession]);
+  }, [
+    activeDocumentId,
+    excalidrawAPI,
+    loadTabIntoEditor,
+    syncTabSummary,
+    tabOrder,
+    upsertDocumentSession,
+  ]);
 
   const onChange = (
     elements: readonly OrderedExcalidrawElement[],
     appState: AppState,
     _files: BinaryFiles,
   ) => {
+    setActiveViewBackgroundColor(appState.viewBackgroundColor);
     const isProgrammaticChange = programmaticChangeDepthRef.current > 0;
 
     if (activeDocumentId && !isProgrammaticChange) {
@@ -957,11 +965,16 @@ const ExcalidrawWrapper = () => {
   const renderedTabs = tabOrder
     .map((tabId) => tabSummaries[tabId])
     .filter(
-      (tabSummary): tabSummary is DocumentTabSummary => tabSummary !== undefined,
+      (tabSummary): tabSummary is DocumentTabSummary =>
+        tabSummary !== undefined,
     );
   const activeTabSummary = activeDocumentId
     ? tabSummaries[activeDocumentId] ?? null
     : null;
+  const chromeColors = getWindowChromeColors({
+    theme: editorTheme,
+    viewBackgroundColor: activeViewBackgroundColor,
+  });
   const dirtyDialogState = dirtyTabDialog;
   const dirtyDialogDocument = dirtyDialogState
     ? documentsRef.current.get(dirtyDialogState.documentId) ?? null
@@ -992,14 +1005,14 @@ const ExcalidrawWrapper = () => {
         <TauriTitleBar
           title="tauridraw"
           subtitle={activeTabSummary?.documentName || DEFAULT_DOCUMENT_NAME}
-          theme={editorTheme}
+          chromeColors={chromeColors}
         />
       )}
       {useCustomTitlebar && <TauriResizeHandles />}
       <DocumentTabs
         tabs={renderedTabs}
         activeTabId={activeDocumentId}
-        theme={editorTheme}
+        chromeColors={chromeColors}
         onSelectTab={(tabId) => {
           void handleSelectDocumentTab(tabId);
         }}
@@ -1080,22 +1093,24 @@ const ExcalidrawWrapper = () => {
                       }
                     : previousDialog,
                 );
-                void saveDocumentById(dirtyDialogState.documentId).then((saved) => {
-                  if (!saved) {
-                    setDirtyTabDialog((previousDialog) =>
-                      previousDialog
-                        ? {
-                            ...previousDialog,
-                            isSaving: false,
-                          }
-                        : previousDialog,
-                    );
-                    return;
-                  }
+                void saveDocumentById(dirtyDialogState.documentId).then(
+                  (saved) => {
+                    if (!saved) {
+                      setDirtyTabDialog((previousDialog) =>
+                        previousDialog
+                          ? {
+                              ...previousDialog,
+                              isSaving: false,
+                            }
+                          : previousDialog,
+                      );
+                      return;
+                    }
 
-                  setDirtyTabDialog(null);
-                  void closeDocumentById(dirtyDialogState.documentId);
-                });
+                    setDirtyTabDialog(null);
+                    void closeDocumentById(dirtyDialogState.documentId);
+                  },
+                );
               }}
             />
           )}

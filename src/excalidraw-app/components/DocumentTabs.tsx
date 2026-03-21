@@ -1,11 +1,14 @@
 import { memo } from "react";
 
+import type { CSSProperties } from "react";
+
 import type { DocumentTabId, DocumentTabSummary } from "../data/documentTabs";
+import type { WindowChromeColors } from "../windowChromeColors";
 
 type DocumentTabsProps = {
   tabs: DocumentTabSummary[];
   activeTabId: DocumentTabId | null;
-  theme: "light" | "dark";
+  chromeColors: WindowChromeColors;
   onSelectTab: (tabId: DocumentTabId) => void;
   onCloseTab: (tabId: DocumentTabId) => void;
 };
@@ -14,7 +17,7 @@ export const DocumentTabs = memo(
   ({
     tabs,
     activeTabId,
-    theme,
+    chromeColors,
     onSelectTab,
     onCloseTab,
   }: DocumentTabsProps) => {
@@ -23,7 +26,16 @@ export const DocumentTabs = memo(
         className="document-tabs"
         role="tablist"
         aria-label="Open documents"
-        data-theme={theme}
+        style={
+          {
+            "--document-tabs-bg": chromeColors.background,
+            "--document-tabs-border": chromeColors.border,
+            "--document-tab-bg": chromeColors.tabBackground,
+            "--document-tab-bg-active": chromeColors.tabBackgroundActive,
+            "--document-tab-fg": chromeColors.foreground,
+            "--document-tab-fg-muted": chromeColors.mutedForeground,
+          } as CSSProperties
+        }
       >
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;

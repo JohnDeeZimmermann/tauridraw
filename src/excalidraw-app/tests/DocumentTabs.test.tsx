@@ -1,4 +1,5 @@
-import { CaptureUpdateAction } from "@excalidraw/excalidraw";
+import { THEME, CaptureUpdateAction } from "@excalidraw/excalidraw";
+import { applyDarkModeFilter } from "@excalidraw/common";
 import { vi } from "vitest";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
@@ -11,6 +12,8 @@ import {
 } from "@excalidraw/excalidraw/tests/test-utils";
 
 import ExcalidrawApp from "../App";
+import { STORAGE_KEYS } from "../app_constants";
+import { getWindowChromeColors } from "../windowChromeColors";
 
 const fileSystemMocks = vi.hoisted(() => {
   return {
@@ -23,23 +26,17 @@ const fileSystemMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock(
-  "@tauri-apps/api/core",
-  () => {
-    return {
-      invoke: fileSystemMocks.invoke,
-    };
-  },
-);
+vi.mock("@tauri-apps/api/core", () => {
+  return {
+    invoke: fileSystemMocks.invoke,
+  };
+});
 
-vi.mock(
-  "@tauri-apps/api/window",
-  () => {
-    return {
-      getCurrentWindow: fileSystemMocks.getCurrentWindow,
-    };
-  },
-);
+vi.mock("@tauri-apps/api/window", () => {
+  return {
+    getCurrentWindow: fileSystemMocks.getCurrentWindow,
+  };
+});
 
 vi.mock("../data/nativeFileSystem", () => {
   return {
@@ -52,6 +49,23 @@ vi.mock("../data/nativeFileSystem", () => {
 
 describe("document tabs", () => {
   beforeEach(() => {
+    let storageState: Record<string, string> = {};
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storageState[key] ?? null,
+        setItem: (key: string, value: string) => {
+          storageState[key] = String(value);
+        },
+        removeItem: (key: string) => {
+          delete storageState[key];
+        },
+        clear: () => {
+          storageState = {};
+        },
+      },
+    });
+    window.localStorage.removeItem(STORAGE_KEYS.LOCAL_STORAGE_THEME);
     fileSystemMocks.pickNativeExcalidrawOpenPath.mockReset();
     fileSystemMocks.loadNativeExcalidrawFile.mockReset();
     fileSystemMocks.pickNativeExcalidrawSavePath.mockReset();
@@ -61,6 +75,141 @@ describe("document tabs", () => {
     fileSystemMocks.getCurrentWindow.mockImplementation(() => {
       throw new Error("not running in tauri");
     });
+  });
+
+  it("syncs the tab bar background to the active canvas color in light theme", async () => {
+    await render(<ExcalidrawApp />);
+
+    const canvasColor = "#ffd8a8";
+    const expectedColors = getWindowChromeColors({
+      theme: THEME.LIGHT,
+      viewBackgroundColor: canvasColor,
+    });
+
+    API.updateScene({
+      appState: { viewBackgroundColor: canvasColor },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("tablist")
+          .style.getPropertyValue("--document-tabs-bg"),
+      ).toBe(expectedColors.background),
+    );
+  });
+
+  it("syncs the custom title bar and tab bar to the rendered canvas color in dark theme", async () => {
+    window.localStorage.setItem(STORAGE_KEYS.LOCAL_STORAGE_THEME, THEME.DARK);
+    fileSystemMocks.getCurrentWindow.mockReturnValue({} as any);
+    fileSystemMocks.invoke.mockResolvedValue(true);
+
+    await render(<ExcalidrawApp />);
+
+    const rawCanvasColor = "#a5d8ff";
+    const expectedColors = getWindowChromeColors({
+      theme: THEME.DARK,
+      viewBackgroundColor: rawCanvasColor,
+    });
+
+    API.updateScene({
+      appState: { viewBackgroundColor: rawCanvasColor },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("tablist")
+          .style.getPropertyValue("--document-tabs-bg"),
+      ).toBe(expectedColors.background),
+    );
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("banner")
+          .style.getPropertyValue("--tauri-titlebar-bg"),
+      ).toBe(expectedColors.background),
+    );
+    expect(expectedColors.background).toBe(applyDarkModeFilter(rawCanvasColor));
+    expect(
+      screen.getByRole("tablist").style.getPropertyValue("--document-tabs-bg"),
+    ).not.toBe(rawCanvasColor);
+  });
+
+  it("restores each tab's unsaved canvas background color when switching tabs", async () => {
+    await render(<ExcalidrawApp />);
+
+    const firstCanvasColor = "#ffec99";
+    const secondCanvasColor = "#eebefa";
+
+    API.updateScene({
+      appState: { viewBackgroundColor: firstCanvasColor },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("tablist")
+          .style.getPropertyValue("--document-tabs-bg"),
+      ).toBe(
+        getWindowChromeColors({
+          theme: THEME.LIGHT,
+          viewBackgroundColor: firstCanvasColor,
+        }).background,
+      ),
+    );
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
+
+    API.updateScene({
+      appState: { viewBackgroundColor: secondCanvasColor },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    });
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("tablist")
+          .style.getPropertyValue("--document-tabs-bg"),
+      ).toBe(
+        getWindowChromeColors({
+          theme: THEME.LIGHT,
+          viewBackgroundColor: secondCanvasColor,
+        }).background,
+      ),
+    );
+
+    fireEvent.click(screen.getAllByRole("tab")[0]);
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("tablist")
+          .style.getPropertyValue("--document-tabs-bg"),
+      ).toBe(
+        getWindowChromeColors({
+          theme: THEME.LIGHT,
+          viewBackgroundColor: firstCanvasColor,
+        }).background,
+      ),
+    );
+
+    fireEvent.click(screen.getAllByRole("tab")[1]);
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("tablist")
+          .style.getPropertyValue("--document-tabs-bg"),
+      ).toBe(
+        getWindowChromeColors({
+          theme: THEME.LIGHT,
+          viewBackgroundColor: secondCanvasColor,
+        }).background,
+      ),
+    );
   });
 
   it("starts with one tab and creates a second untitled tab on new", async () => {
@@ -308,7 +457,9 @@ describe("document tabs", () => {
       ).toHaveLength(1),
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: /close untitled/i })[1]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /close untitled/i })[1],
+    );
 
     await waitFor(() =>
       expect(screen.getByText(/has unsaved changes/i)).not.toBeNull(),
@@ -321,7 +472,9 @@ describe("document tabs", () => {
     );
     expect(screen.getAllByRole("tab")).toHaveLength(2);
 
-    fireEvent.click(screen.getAllByRole("button", { name: /close untitled/i })[1]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /close untitled/i })[1],
+    );
     await waitFor(() =>
       expect(screen.getByText(/has unsaved changes/i)).not.toBeNull(),
     );

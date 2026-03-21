@@ -4,11 +4,12 @@
   --tauri-titlebar-height: 24px;
   --tauri-resize-handle-size: 8px;
   --tauri-top-resize-handle-height: 3px;
-  --tauri-titlebar-bg: linear-gradient(180deg, #f7f8fb 0%, #eceff4 100%);
+  --tauri-titlebar-bg: #eceff4;
   --tauri-titlebar-fg: #1c2430;
-  --tauri-titlebar-muted: rgba(28, 36, 48, 0.58);
-  --tauri-titlebar-border: rgba(25, 36, 52, 0.1);
-  --tauri-titlebar-dot: linear-gradient(135deg, #18b6a6 0%, #4a77ff 100%);
+  --tauri-titlebar-muted: rgba(28, 36, 48, 0.62);
+  --tauri-titlebar-border: rgba(28, 36, 48, 0.1);
+  --tauri-titlebar-dot: #999ea6;
+  --tauri-titlebar-dot-ring: rgba(28, 36, 48, 0.16);
   --tauri-titlebar-close-hover: #d93025;
 
   display: flex;
@@ -24,12 +25,12 @@
 }
 
 .document-tabs {
-  --document-tabs-bg: linear-gradient(180deg, #eef2f7 0%, #e5ebf4 100%);
-  --document-tabs-border: rgba(24, 36, 52, 0.1);
-  --document-tab-bg: rgba(255, 255, 255, 0.52);
-  --document-tab-bg-active: rgba(255, 255, 255, 0.92);
-  --document-tab-fg: #263140;
-  --document-tab-fg-muted: rgba(38, 49, 64, 0.62);
+  --document-tabs-bg: #eceff4;
+  --document-tabs-border: rgba(28, 36, 48, 0.1);
+  --document-tab-bg: rgba(28, 36, 48, 0.04);
+  --document-tab-bg-active: rgba(28, 36, 48, 0.1);
+  --document-tab-fg: #1c2430;
+  --document-tab-fg-muted: rgba(28, 36, 48, 0.62);
   --document-tab-dirty: #dd6b20;
 
   display: flex;
@@ -42,16 +43,6 @@
   scrollbar-width: thin;
 }
 
-.document-tabs[data-theme="dark"] {
-  --document-tabs-bg: linear-gradient(180deg, #1a202a 0%, #151a23 100%);
-  --document-tabs-border: rgba(255, 255, 255, 0.08);
-  --document-tab-bg: rgba(255, 255, 255, 0.05);
-  --document-tab-bg-active: rgba(255, 255, 255, 0.11);
-  --document-tab-fg: #edf2fb;
-  --document-tab-fg-muted: rgba(237, 242, 251, 0.68);
-  --document-tab-dirty: #f6ad55;
-}
-
 .document-tabs__tab {
   display: flex;
   align-items: stretch;
@@ -62,9 +53,7 @@
   border-radius: 10px;
   background: var(--document-tab-bg);
   color: var(--document-tab-fg);
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .document-tabs__tab[data-active="true"] {
@@ -157,14 +146,6 @@
   user-select: none;
 }
 
-.tauri-titlebar[data-theme="dark"] {
-  --tauri-titlebar-bg: linear-gradient(180deg, #202630 0%, #171c24 100%);
-  --tauri-titlebar-fg: #eef3fb;
-  --tauri-titlebar-muted: rgba(238, 243, 251, 0.6);
-  --tauri-titlebar-border: rgba(255, 255, 255, 0.08);
-  --tauri-titlebar-dot: linear-gradient(135deg, #38d0c3 0%, #6e8eff 100%);
-}
-
 .tauri-titlebar__drag-region {
   display: flex;
   align-items: center;
@@ -190,7 +171,7 @@
 .tauri-titlebar__dot {
   background: var(--tauri-titlebar-dot);
   border-radius: 999px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 1px var(--tauri-titlebar-dot-ring);
   flex: 0 0 auto;
   height: 9px;
   width: 9px;
@@ -303,9 +284,7 @@
   font-weight: 500;
   line-height: 1;
   cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease,
+  transition: background-color 120ms ease, color 120ms ease,
     transform 120ms ease;
 }
 

@@ -3,8 +3,11 @@ import { vi } from "vitest";
 
 import {
   getDocumentNameFromPath,
+  loadNativeExcalidrawFile,
   normalizeExcalidrawPath,
   openNativeExcalidrawFile,
+  pickNativeExcalidrawOpenPath,
+  pickNativeExcalidrawSavePath,
   saveNativeExcalidrawFile,
   saveNativeExcalidrawFileAs,
 } from "../data/nativeFileSystem";
@@ -19,18 +22,24 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@tauri-apps/plugin-dialog", () => {
-  return {
-    open: mocks.open,
-    save: mocks.save,
-  };
-});
+vi.mock(
+  "@tauri-apps/plugin-dialog",
+  () => {
+    return {
+      open: mocks.open,
+      save: mocks.save,
+    };
+  },
+);
 
-vi.mock("@tauri-apps/api/core", () => {
-  return {
-    invoke: mocks.invoke,
-  };
-});
+vi.mock(
+  "@tauri-apps/api/core",
+  () => {
+    return {
+      invoke: mocks.invoke,
+    };
+  },
+);
 
 vi.mock("@excalidraw/excalidraw/data/blob", () => {
   return {
@@ -90,6 +99,39 @@ describe("native file system", () => {
     expect(result).toEqual({
       filePath: "/tmp/opened.excalidraw",
       documentName: "opened",
+      scene: loadedScene,
+    });
+  });
+
+  it("supports picking paths without reading or writing immediately", async () => {
+    mocks.open.mockResolvedValue("/tmp/preflight-open");
+    mocks.save.mockResolvedValue("/tmp/preflight-save");
+
+    const openPath = await pickNativeExcalidrawOpenPath();
+    const savePath = await pickNativeExcalidrawSavePath("Sketch");
+
+    expect(openPath).toBe("/tmp/preflight-open.excalidraw");
+    expect(savePath).toBe("/tmp/preflight-save.excalidraw");
+    expect(mocks.invoke).not.toHaveBeenCalled();
+  });
+
+  it("loads a file from an already-selected path", async () => {
+    const loadedScene = {
+      elements: [],
+      appState: null,
+      files: {},
+    };
+    mocks.invoke.mockResolvedValue("{\"type\":\"excalidraw\"}");
+    mocks.loadFromBlob.mockResolvedValue(loadedScene);
+
+    const result = await loadNativeExcalidrawFile("/tmp/already-picked");
+
+    expect(mocks.invoke).toHaveBeenCalledWith("read_excalidraw_file", {
+      path: "/tmp/already-picked",
+    });
+    expect(result).toEqual({
+      filePath: "/tmp/already-picked",
+      documentName: "already-picked",
       scene: loadedScene,
     });
   });

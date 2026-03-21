@@ -41,6 +41,16 @@ const getSuggestedFileName = (name?: string | null) => {
 };
 
 export const openNativeExcalidrawFile = async () => {
+  const selectedPath = await pickNativeExcalidrawOpenPath();
+
+  if (!selectedPath) {
+    return null;
+  }
+
+  return loadNativeExcalidrawFile(selectedPath);
+};
+
+export const pickNativeExcalidrawOpenPath = async () => {
   const selectedPath = await open({
     multiple: false,
     directory: false,
@@ -51,7 +61,10 @@ export const openNativeExcalidrawFile = async () => {
     return null;
   }
 
-  const filePath = normalizeExcalidrawPath(selectedPath);
+  return normalizeExcalidrawPath(selectedPath);
+};
+
+export const loadNativeExcalidrawFile = async (filePath: string) => {
   const contents = await invoke<string>("read_excalidraw_file", {
     path: filePath,
   });
@@ -72,7 +85,7 @@ export const openNativeExcalidrawFile = async () => {
 export const saveNativeExcalidrawFile = async (opts: {
   filePath: string;
   elements: readonly ExcalidrawElement[];
-  appState: AppState;
+  appState: Partial<AppState>;
   files: BinaryFiles;
 }) => {
   const filePath = normalizeExcalidrawPath(opts.filePath);
@@ -92,13 +105,10 @@ export const saveNativeExcalidrawFile = async (opts: {
 export const saveNativeExcalidrawFileAs = async (opts: {
   suggestedName?: string | null;
   elements: readonly ExcalidrawElement[];
-  appState: AppState;
+  appState: Partial<AppState>;
   files: BinaryFiles;
 }) => {
-  const selectedPath = await save({
-    filters: EXCALIDRAW_FILTER,
-    defaultPath: getSuggestedFileName(opts.suggestedName),
-  });
+  const selectedPath = await pickNativeExcalidrawSavePath(opts.suggestedName);
 
   if (!selectedPath) {
     return null;
@@ -110,4 +120,19 @@ export const saveNativeExcalidrawFileAs = async (opts: {
     appState: opts.appState,
     files: opts.files,
   });
+};
+
+export const pickNativeExcalidrawSavePath = async (
+  suggestedName?: string | null,
+) => {
+  const selectedPath = await save({
+    filters: EXCALIDRAW_FILTER,
+    defaultPath: getSuggestedFileName(suggestedName),
+  });
+
+  if (!selectedPath) {
+    return null;
+  }
+
+  return normalizeExcalidrawPath(selectedPath);
 };

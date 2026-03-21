@@ -23,6 +23,130 @@
   min-height: 0;
 }
 
+.document-tabs {
+  --document-tabs-bg: linear-gradient(180deg, #eef2f7 0%, #e5ebf4 100%);
+  --document-tabs-border: rgba(24, 36, 52, 0.1);
+  --document-tab-bg: rgba(255, 255, 255, 0.52);
+  --document-tab-bg-active: rgba(255, 255, 255, 0.92);
+  --document-tab-fg: #263140;
+  --document-tab-fg-muted: rgba(38, 49, 64, 0.62);
+  --document-tab-dirty: #dd6b20;
+
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 6px 8px;
+  background: var(--document-tabs-bg);
+  border-bottom: 1px solid var(--document-tabs-border);
+  scrollbar-width: thin;
+}
+
+.document-tabs[data-theme="dark"] {
+  --document-tabs-bg: linear-gradient(180deg, #1a202a 0%, #151a23 100%);
+  --document-tabs-border: rgba(255, 255, 255, 0.08);
+  --document-tab-bg: rgba(255, 255, 255, 0.05);
+  --document-tab-bg-active: rgba(255, 255, 255, 0.11);
+  --document-tab-fg: #edf2fb;
+  --document-tab-fg-muted: rgba(237, 242, 251, 0.68);
+  --document-tab-dirty: #f6ad55;
+}
+
+.document-tabs__tab {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 240px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--document-tab-bg);
+  color: var(--document-tab-fg);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.document-tabs__tab[data-active="true"] {
+  background: var(--document-tab-bg-active);
+  border-color: var(--document-tabs-border);
+}
+
+.document-tabs__tab-button,
+.document-tabs__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+}
+
+.document-tabs__tab-button {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 10px;
+  cursor: pointer;
+}
+
+.document-tabs__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.document-tabs__label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.document-tabs__dirty-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--document-tab-dirty);
+  flex: 0 0 auto;
+}
+
+.document-tabs__close {
+  padding: 0 10px 0 8px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--document-tab-fg-muted);
+}
+
+.document-tabs__close:hover {
+  color: var(--document-tab-fg);
+}
+
+.document-tabs__tab-button:focus-visible,
+.document-tabs__close:focus-visible {
+  outline: 2px solid var(--color-brand-active);
+  outline-offset: -1px;
+  border-radius: 8px;
+}
+
+.dirty-tab-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dirty-tab-dialog__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dirty-tab-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .tauri-titlebar {
   display: flex;
   align-items: center;

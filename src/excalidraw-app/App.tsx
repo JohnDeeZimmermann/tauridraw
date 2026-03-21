@@ -22,11 +22,8 @@ import {
   EVENT,
   THEME,
   VERSION_TIMEOUT,
-  debounce,
   getVersion,
   getFrame,
-  isTestEnv,
-  preventUnload,
   resolvablePromise,
   isRunningInIframe,
   isDevEnv,
@@ -46,6 +43,10 @@ import {
   exportToPlus,
   share,
   youtubeIcon,
+  file,
+  LoadIcon,
+  save,
+  saveAs,
 } from "@excalidraw/excalidraw/components/icons";
 import { isElementLink } from "@excalidraw/element";
 import {
@@ -64,6 +65,7 @@ import {
 import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
 import type { RestoredDataState } from "@excalidraw/excalidraw/data/restore";
 import type {
+  ExcalidrawElement,
   FileId,
   NonDeletedExcalidrawElement,
   OrderedExcalidrawElement,
@@ -89,8 +91,6 @@ import {
 import {
   FIREBASE_STORAGE_PREFIXES,
   isExcalidrawPlusSignedUser,
-  STORAGE_KEYS,
-  SYNC_BROWSER_TABS_TIMEOUT,
 } from "./app_constants";
 import Collab, {
   collabAPIAtom,
@@ -114,23 +114,15 @@ import {
 } from "./data";
 
 import { updateStaleImageStatuses } from "./data/FileManager";
-import {
-  importFromLocalStorage,
-  importUsernameFromLocalStorage,
-} from "./data/localStorage";
 
 import { loadFilesFromFirebase } from "./data/firebase";
 import {
   LibraryIndexedDBAdapter,
   LibraryLocalStorageMigrationAdapter,
-  LocalData,
-  localStorageQuotaExceededAtom,
 } from "./data/LocalData";
-import { isBrowserStorageStateNewer } from "./data/tabSync";
 import { ShareDialog, shareDialogStateAtom } from "./share/ShareDialog";
 import CollabError, { collabErrorIndicatorAtom } from "./collab/CollabError";
 import { useHandleAppTheme } from "./useHandleAppTheme";
-import { getPreferredLanguage } from "./app-language/language-detector";
 import { useAppLangCode } from "./app-language/language-state";
 import DebugCanvas, {
   debugRenderer,
@@ -144,6 +136,11 @@ import "./index.scss";
 
 import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanner";
 import { AppSidebar } from "./components/AppSidebar";
+import {
+  openNativeExcalidrawFile,
+  saveNativeExcalidrawFile,
+  saveNativeExcalidrawFileAs,
+} from "./data/nativeFileSystem";
 
 import type { CollabAPI } from "./collab/Collab";
 
@@ -210,6 +207,24 @@ const shareableLinkConfirmDialog = {
   color: "danger",
 } as const;
 
+const DEFAULT_DOCUMENT_NAME = "Untitled";
+
+const markSavedImageElements = (
+  elements: readonly ExcalidrawElement[],
+  files: BinaryFiles,
+) => {
+  return elements.map((element) => {
+    if (
+      isInitializedImageElement(element) &&
+      element.status === "pending" &&
+      files[element.fileId]
+    ) {
+      return newElementWith(element, { status: "saved" });
+    }
+    return element;
+  });
+};
+
 const initializeScene = async (opts: {
   collabAPI: CollabAPI | null;
   excalidrawAPI: ExcalidrawImperativeAPI;
@@ -226,8 +241,6 @@ const initializeScene = async (opts: {
   );
   const externalUrlMatch = window.location.hash.match(/^#url=(.*)$/);
 
-  const localDataState = importFromLocalStorage();
-
   let scene: Omit<
     RestoredDataState,
     // we're not storing files in the scene database/localStorage, and instead
@@ -236,11 +249,8 @@ const initializeScene = async (opts: {
   > & {
     scrollToContent?: boolean;
   } = {
-    elements: restoreElements(localDataState?.elements, null, {
-      repairBindings: true,
-      deleteInvisibleElements: true,
-    }),
-    appState: restoreAppState(localDataState?.appState, null),
+    elements: [],
+    appState: restoreAppState(null, null),
   };
 
   let roomLinkData = getCollaborationLinkData(window.location.href);
@@ -266,14 +276,9 @@ const initializeScene = async (opts: {
               repairBindings: true,
               deleteInvisibleElements: true,
             }),
-            localDataState?.elements,
+            null,
           ),
-          appState: restoreAppState(
-            imported.appState,
-            // local appState when importing from backend to ensure we restore
-            // localStorage user settings which we do not persist on server.
-            localDataState?.appState,
-          ),
+          appState: restoreAppState(imported.appState, null),
         };
       }
       scene.scrollToContent = true;
@@ -337,7 +342,7 @@ const initializeScene = async (opts: {
           ...restoreAppState(
             {
               ...scene?.appState,
-              theme: localDataState?.appState?.theme || scene?.appState?.theme,
+              theme: scene?.appState?.theme,
             },
             excalidrawAPI.getAppState(),
           ),
@@ -374,7 +379,7 @@ const ExcalidrawWrapper = () => {
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
-  const [langCode, setLangCode] = useAppLangCode();
+  const [langCode] = useAppLangCode();
 
   const editorInterface = useEditorInterface();
 
@@ -417,6 +422,27 @@ const ExcalidrawWrapper = () => {
   });
 
   const [, forceRefresh] = useState(false);
+  const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
+  const [documentName, setDocumentName] = useState(DEFAULT_DOCUMENT_NAME);
+  const [isDirty, setIsDirty] = useState(false);
+  const programmaticChangeDepthRef = useRef(0);
+
+  const runAsProgrammaticSceneMutation = useCallback(
+    async (callback: () => void | Promise<void>) => {
+      programmaticChangeDepthRef.current += 1;
+      try {
+        await callback();
+      } finally {
+        queueMicrotask(() => {
+          programmaticChangeDepthRef.current = Math.max(
+            0,
+            programmaticChangeDepthRef.current - 1,
+          );
+        });
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (isDevEnv()) {
@@ -434,13 +460,24 @@ const ExcalidrawWrapper = () => {
   }, [excalidrawAPI]);
 
   useEffect(() => {
+    if (!excalidrawAPI) {
+      return;
+    }
+    void runAsProgrammaticSceneMutation(async () => {
+      excalidrawAPI.updateScene({
+        appState: { name: DEFAULT_DOCUMENT_NAME },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    });
+  }, [excalidrawAPI, runAsProgrammaticSceneMutation]);
+
+  useEffect(() => {
     if (!excalidrawAPI || (!isCollabDisabled && !collabAPI)) {
       return;
     }
 
     const loadImages = (
       data: ResolutionType<typeof initializeScene>,
-      isInitialLoad = false,
     ) => {
       if (!data.scene) {
         return;
@@ -483,31 +520,18 @@ const ExcalidrawWrapper = () => {
               elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
             });
           });
-        } else if (isInitialLoad) {
-          if (fileIds.length) {
-            LocalData.fileStorage
-              .getFiles(fileIds)
-              .then(({ loadedFiles, erroredFiles }) => {
-                if (loadedFiles.length) {
-                  excalidrawAPI.addFiles(loadedFiles);
-                }
-                updateStaleImageStatuses({
-                  excalidrawAPI,
-                  erroredFiles,
-                  elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
-                });
-              });
-          }
-          // on fresh load, clear unused files from IDB (from previous
-          // session)
-          LocalData.fileStorage.clearObsoleteFiles({ currentFileIds: fileIds });
         }
       }
     };
 
-    initializeScene({ collabAPI, excalidrawAPI }).then(async (data) => {
-      loadImages(data, /* isInitialLoad */ true);
+    initializeScene({ collabAPI, excalidrawAPI }).then((data) => {
+      loadImages(data);
       initialStatePromiseRef.current.promise.resolve(data.scene);
+      setActiveFilePath(null);
+      setIsDirty(false);
+      setDocumentName(
+        data.scene?.appState?.name?.trim() || DEFAULT_DOCUMENT_NAME,
+      );
     });
 
     const onHashChange = async (event: HashChangeEvent) => {
@@ -533,127 +557,20 @@ const ExcalidrawWrapper = () => {
               captureUpdate: CaptureUpdateAction.IMMEDIATELY,
             });
           }
+          setActiveFilePath(null);
+          setIsDirty(false);
+          setDocumentName(
+            data.scene?.appState?.name?.trim() || DEFAULT_DOCUMENT_NAME,
+          );
         });
       }
     };
 
-    const syncData = debounce(() => {
-      if (isTestEnv()) {
-        return;
-      }
-      if (
-        !document.hidden &&
-        ((collabAPI && !collabAPI.isCollaborating()) || isCollabDisabled)
-      ) {
-        // don't sync if local state is newer or identical to browser state
-        if (isBrowserStorageStateNewer(STORAGE_KEYS.VERSION_DATA_STATE)) {
-          const localDataState = importFromLocalStorage();
-          const username = importUsernameFromLocalStorage();
-          setLangCode(getPreferredLanguage());
-          excalidrawAPI.updateScene({
-            ...localDataState,
-            captureUpdate: CaptureUpdateAction.NEVER,
-          });
-          LibraryIndexedDBAdapter.load().then((data) => {
-            if (data) {
-              excalidrawAPI.updateLibrary({
-                libraryItems: data.libraryItems,
-              });
-            }
-          });
-          collabAPI?.setUsername(username || "");
-        }
-
-        if (isBrowserStorageStateNewer(STORAGE_KEYS.VERSION_FILES)) {
-          const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
-          const currFiles = excalidrawAPI.getFiles();
-          const fileIds =
-            elements?.reduce((acc, element) => {
-              if (
-                isInitializedImageElement(element) &&
-                // only load and update images that aren't already loaded
-                !currFiles[element.fileId]
-              ) {
-                return acc.concat(element.fileId);
-              }
-              return acc;
-            }, [] as FileId[]) || [];
-          if (fileIds.length) {
-            LocalData.fileStorage
-              .getFiles(fileIds)
-              .then(({ loadedFiles, erroredFiles }) => {
-                if (loadedFiles.length) {
-                  excalidrawAPI.addFiles(loadedFiles);
-                }
-                updateStaleImageStatuses({
-                  excalidrawAPI,
-                  erroredFiles,
-                  elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
-                });
-              });
-          }
-        }
-      }
-    }, SYNC_BROWSER_TABS_TIMEOUT);
-
-    const onUnload = () => {
-      LocalData.flushSave();
-    };
-
-    const visibilityChange = (event: FocusEvent | Event) => {
-      if (event.type === EVENT.BLUR || document.hidden) {
-        LocalData.flushSave();
-      }
-      if (
-        event.type === EVENT.VISIBILITY_CHANGE ||
-        event.type === EVENT.FOCUS
-      ) {
-        syncData();
-      }
-    };
-
     window.addEventListener(EVENT.HASHCHANGE, onHashChange, false);
-    window.addEventListener(EVENT.UNLOAD, onUnload, false);
-    window.addEventListener(EVENT.BLUR, visibilityChange, false);
-    document.addEventListener(EVENT.VISIBILITY_CHANGE, visibilityChange, false);
-    window.addEventListener(EVENT.FOCUS, visibilityChange, false);
     return () => {
       window.removeEventListener(EVENT.HASHCHANGE, onHashChange, false);
-      window.removeEventListener(EVENT.UNLOAD, onUnload, false);
-      window.removeEventListener(EVENT.BLUR, visibilityChange, false);
-      window.removeEventListener(EVENT.FOCUS, visibilityChange, false);
-      document.removeEventListener(
-        EVENT.VISIBILITY_CHANGE,
-        visibilityChange,
-        false,
-      );
     };
-  }, [isCollabDisabled, collabAPI, excalidrawAPI, setLangCode]);
-
-  useEffect(() => {
-    const unloadHandler = (event: BeforeUnloadEvent) => {
-      LocalData.flushSave();
-
-      if (
-        excalidrawAPI &&
-        LocalData.fileStorage.shouldPreventUnload(
-          excalidrawAPI.getSceneElements(),
-        )
-      ) {
-        if (import.meta.env.VITE_APP_DISABLE_PREVENT_UNLOAD !== "true") {
-          preventUnload(event);
-        } else {
-          console.warn(
-            "preventing unload disabled (VITE_APP_DISABLE_PREVENT_UNLOAD)",
-          );
-        }
-      }
-    };
-    window.addEventListener(EVENT.BEFORE_UNLOAD, unloadHandler);
-    return () => {
-      window.removeEventListener(EVENT.BEFORE_UNLOAD, unloadHandler);
-    };
-  }, [excalidrawAPI]);
+  }, [isCollabDisabled, collabAPI, excalidrawAPI]);
 
   const onChange = (
     elements: readonly OrderedExcalidrawElement[],
@@ -663,37 +580,8 @@ const ExcalidrawWrapper = () => {
     if (collabAPI?.isCollaborating()) {
       collabAPI.syncElements(elements);
     }
-
-    // this check is redundant, but since this is a hot path, it's best
-    // not to evaludate the nested expression every time
-    if (!LocalData.isSavePaused()) {
-      LocalData.save(elements, appState, files, () => {
-        if (excalidrawAPI) {
-          let didChange = false;
-
-          const elements = excalidrawAPI
-            .getSceneElementsIncludingDeleted()
-            .map((element) => {
-              if (
-                LocalData.fileStorage.shouldUpdateImageElementStatus(element)
-              ) {
-                const newElement = newElementWith(element, { status: "saved" });
-                if (newElement !== element) {
-                  didChange = true;
-                }
-                return newElement;
-              }
-              return element;
-            });
-
-          if (didChange) {
-            excalidrawAPI.updateScene({
-              elements,
-              captureUpdate: CaptureUpdateAction.NEVER,
-            });
-          }
-        }
-      });
+    if (programmaticChangeDepthRef.current === 0) {
+      setIsDirty(true);
     }
 
     // Render the debug scene if the debug canvas is available
@@ -766,12 +654,170 @@ const ExcalidrawWrapper = () => {
 
   const isOffline = useAtomValue(isOfflineAtom);
 
-  const localStorageQuotaExceeded = useAtomValue(localStorageQuotaExceededAtom);
-
   const onCollabDialogOpen = useCallback(
     () => setShareDialogState({ isOpen: true, type: "collaborationOnly" }),
     [setShareDialogState],
   );
+
+  const handleNewDocument = useCallback(async () => {
+    if (!excalidrawAPI) {
+      return;
+    }
+    await runAsProgrammaticSceneMutation(async () => {
+      excalidrawAPI.resetScene({ resetLoadingState: true });
+      excalidrawAPI.updateScene({
+        appState: { name: DEFAULT_DOCUMENT_NAME },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    });
+    setActiveFilePath(null);
+    setDocumentName(DEFAULT_DOCUMENT_NAME);
+    setIsDirty(false);
+  }, [excalidrawAPI, runAsProgrammaticSceneMutation]);
+
+  const handleOpenDocument = useCallback(async () => {
+    if (!excalidrawAPI) {
+      return;
+    }
+    try {
+      const result = await openNativeExcalidrawFile();
+      if (!result) {
+        return;
+      }
+      const restoredElements = markSavedImageElements(
+        result.scene.elements,
+        result.scene.files,
+      );
+      await runAsProgrammaticSceneMutation(async () => {
+        excalidrawAPI.resetScene({ resetLoadingState: true });
+        const filesToAdd = Object.values(result.scene.files);
+        if (filesToAdd.length) {
+          excalidrawAPI.addFiles(filesToAdd);
+        }
+        excalidrawAPI.updateScene({
+          elements: restoredElements,
+          appState: {
+            ...(result.scene.appState || {}),
+            name: result.documentName,
+            isLoading: false,
+          },
+          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        });
+        excalidrawAPI.history.clear();
+      });
+      setActiveFilePath(result.filePath);
+      setDocumentName(result.documentName);
+      setIsDirty(false);
+    } catch (error: any) {
+      setErrorMessage(error?.message || "Failed to open file");
+    }
+  }, [excalidrawAPI, runAsProgrammaticSceneMutation]);
+
+  const handleSaveAsDocument = useCallback(async () => {
+    if (!excalidrawAPI) {
+      return false;
+    }
+
+    try {
+      const result = await saveNativeExcalidrawFileAs({
+        suggestedName: excalidrawAPI.getName() || documentName,
+        elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
+        appState: excalidrawAPI.getAppState(),
+        files: excalidrawAPI.getFiles(),
+      });
+      if (!result) {
+        return false;
+      }
+      await runAsProgrammaticSceneMutation(async () => {
+        excalidrawAPI.updateScene({
+          appState: { name: result.documentName },
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+      });
+      setActiveFilePath(result.filePath);
+      setDocumentName(result.documentName);
+      setIsDirty(false);
+      return true;
+    } catch (error: any) {
+      setErrorMessage(error?.message || "Failed to save file");
+      return false;
+    }
+  }, [documentName, excalidrawAPI, runAsProgrammaticSceneMutation]);
+
+  const handleSaveDocument = useCallback(async () => {
+    if (!excalidrawAPI) {
+      return;
+    }
+    if (!activeFilePath) {
+      await handleSaveAsDocument();
+      return;
+    }
+
+    try {
+      const result = await saveNativeExcalidrawFile({
+        filePath: activeFilePath,
+        elements: excalidrawAPI.getSceneElementsIncludingDeleted(),
+        appState: excalidrawAPI.getAppState(),
+        files: excalidrawAPI.getFiles(),
+      });
+      await runAsProgrammaticSceneMutation(async () => {
+        excalidrawAPI.updateScene({
+          appState: { name: result.documentName },
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+      });
+      setActiveFilePath(result.filePath);
+      setDocumentName(result.documentName);
+      setIsDirty(false);
+    } catch (error: any) {
+      setErrorMessage(error?.message || "Failed to save file");
+    }
+  }, [
+    activeFilePath,
+    excalidrawAPI,
+    handleSaveAsDocument,
+    runAsProgrammaticSceneMutation,
+  ]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === "n" && !event.shiftKey) {
+        event.preventDefault();
+        void handleNewDocument();
+        return;
+      }
+      if (key === "o" && !event.shiftKey) {
+        event.preventDefault();
+        void handleOpenDocument();
+        return;
+      }
+      if (key === "s" && event.shiftKey) {
+        event.preventDefault();
+        void handleSaveAsDocument();
+        return;
+      }
+      if (key === "s") {
+        event.preventDefault();
+        void handleSaveDocument();
+      }
+    };
+
+    window.addEventListener(EVENT.KEYDOWN, handleKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener(EVENT.KEYDOWN, handleKeyDown, {
+        capture: true,
+      });
+    };
+  }, [
+    handleNewDocument,
+    handleOpenDocument,
+    handleSaveAsDocument,
+    handleSaveDocument,
+  ]);
 
   // browsers generally prevent infinite self-embedding, there are
   // cases where it still happens, and while we disallow self-embedding
@@ -847,7 +893,10 @@ const ExcalidrawWrapper = () => {
         UIOptions={{
           canvasActions: {
             toggleTheme: true,
+            loadScene: false,
+            saveToActiveFile: false,
             export: {
+              saveFileToDisk: false,
               onExportToBackend,
               renderCustomUI: excalidrawAPI
                 ? (elements, appState, files) => {
@@ -903,14 +952,27 @@ const ExcalidrawWrapper = () => {
           theme={appTheme}
           setTheme={(theme) => setAppTheme(theme)}
           refresh={() => forceRefresh((prev) => !prev)}
+          onNewDocument={() => void handleNewDocument()}
+          onOpenDocument={() => void handleOpenDocument()}
+          onSaveDocument={() => void handleSaveDocument()}
+          onSaveAsDocument={() => void handleSaveAsDocument()}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
           isCollabEnabled={!isCollabDisabled}
+          onOpenDocument={() => void handleOpenDocument()}
         />
         <OverwriteConfirmDialog>
           <OverwriteConfirmDialog.Actions.ExportToImage />
-          <OverwriteConfirmDialog.Actions.SaveToDisk />
+          <OverwriteConfirmDialog.Action
+            title={t("overwriteConfirm.action.saveToDisk.title")}
+            actionLabel={t("overwriteConfirm.action.saveToDisk.button")}
+            onClick={() => {
+              void handleSaveAsDocument();
+            }}
+          >
+            {t("overwriteConfirm.action.saveToDisk.description")}
+          </OverwriteConfirmDialog.Action>
           {excalidrawAPI && (
             <OverwriteConfirmDialog.Action
               title={t("overwriteConfirm.action.excalidrawPlus.title")}
@@ -935,11 +997,6 @@ const ExcalidrawWrapper = () => {
         {isCollaborating && isOffline && (
           <div className="alertalert--warning">
             {t("alerts.collabOfflineWarning")}
-          </div>
-        )}
-        {localStorageQuotaExceeded && (
-          <div className="alert alert--danger">
-            {t("alerts.localStorageQuotaExceeded")}
           </div>
         )}
         {latestShareableLink && (
@@ -980,6 +1037,46 @@ const ExcalidrawWrapper = () => {
 
         <CommandPalette
           customCommandPaletteItems={[
+            {
+              label: "New file",
+              category: DEFAULT_CATEGORIES.app,
+              predicate: true,
+              icon: file,
+              keywords: ["new", "file", "document", "blank"],
+              perform: () => {
+                void handleNewDocument();
+              },
+            },
+            {
+              label: "Open file",
+              category: DEFAULT_CATEGORIES.app,
+              predicate: true,
+              icon: LoadIcon,
+              keywords: ["open", "file", "document"],
+              perform: () => {
+                void handleOpenDocument();
+              },
+            },
+            {
+              label: "Save file",
+              category: DEFAULT_CATEGORIES.export,
+              predicate: true,
+              icon: save,
+              keywords: ["save", "write", "file"],
+              perform: () => {
+                void handleSaveDocument();
+              },
+            },
+            {
+              label: "Save file as",
+              category: DEFAULT_CATEGORIES.export,
+              predicate: true,
+              icon: saveAs,
+              keywords: ["save", "as", "file", "rename"],
+              perform: () => {
+                void handleSaveAsDocument();
+              },
+            },
             {
               label: t("labels.liveCollaboration"),
               category: DEFAULT_CATEGORIES.app,

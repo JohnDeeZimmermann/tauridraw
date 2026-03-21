@@ -1,4 +1,4 @@
-import { loginIcon } from "@excalidraw/excalidraw/components/icons";
+import { LoadIcon, loginIcon } from "@excalidraw/excalidraw/components/icons";
 import { POINTER_EVENTS } from "@excalidraw/common";
 import { useI18n } from "@excalidraw/excalidraw/i18n";
 import { WelcomeScreen } from "@excalidraw/excalidraw/index";
@@ -9,6 +9,7 @@ import { isExcalidrawPlusSignedUser } from "../app_constants";
 export const AppWelcomeScreen: React.FC<{
   onCollabDialogOpen: () => any;
   isCollabEnabled: boolean;
+  onOpenDocument: () => void;
 }> = React.memo((props) => {
   const { t } = useI18n();
   let headingContent;
@@ -57,7 +58,13 @@ export const AppWelcomeScreen: React.FC<{
           {headingContent}
         </WelcomeScreen.Center.Heading>
         <WelcomeScreen.Center.Menu>
-          <WelcomeScreen.Center.MenuItemLoadScene />
+          <WelcomeScreen.Center.MenuItem
+            onSelect={props.onOpenDocument}
+            icon={LoadIcon}
+            shortcut="Ctrl+O"
+          >
+            {t("buttons.load")}
+          </WelcomeScreen.Center.MenuItem>
           <WelcomeScreen.Center.MenuItemHelp />
           {props.isCollabEnabled && (
             <WelcomeScreen.Center.MenuItemLiveCollaborationTrigger

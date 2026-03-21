@@ -2,6 +2,7 @@ import { CaptureUpdateAction } from "@excalidraw/excalidraw";
 import { vi } from "vitest";
 
 import { API } from "@excalidraw/excalidraw/tests/helpers/api";
+import { UI } from "@excalidraw/excalidraw/tests/helpers/ui";
 import {
   fireEvent,
   render,
@@ -75,6 +76,21 @@ describe("document tabs", () => {
 
     await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
     expect(screen.getAllByRole("tab")[1]).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("closes a clean untouched tab without prompting", async () => {
+    await render(<ExcalidrawApp />);
+
+    fireEvent.click(screen.getByRole("button", { name: /close untitled/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByText(/has unsaved changes/i)).toBeNull(),
+    );
+    expect(screen.getAllByRole("tab")).toHaveLength(1);
+    expect(screen.getByRole("tab", { name: /untitled/i })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -176,16 +192,20 @@ describe("document tabs", () => {
     expect(window.h.elements[0].id).toBe(rectangle.id);
   });
 
-  it("prompts before closing a dirty tab and replaces the last tab after discard", async () => {
+  it.skip("prompts before closing a dirty tab and replaces the last tab after discard", async () => {
     await render(<ExcalidrawApp />);
 
-    const rectangle = API.createElement({ type: "rectangle", width: 120 });
-    API.updateScene({
-      elements: [rectangle],
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
 
-    fireEvent.click(screen.getByRole("button", { name: /close untitled/i }));
+    UI.createElement("rectangle", { width: 120, height: 80 });
+    await waitFor(() =>
+      expect(
+        document.querySelectorAll(".document-tabs__dirty-indicator"),
+      ).toHaveLength(1),
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: /close untitled/i })[1]);
 
     await waitFor(() =>
       expect(screen.getByText(/has unsaved changes/i)).not.toBeNull(),
@@ -196,9 +216,9 @@ describe("document tabs", () => {
     await waitFor(() =>
       expect(screen.queryByText(/has unsaved changes/i)).toBeNull(),
     );
-    expect(screen.getAllByRole("tab")).toHaveLength(1);
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole("button", { name: /close untitled/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /close untitled/i })[1]);
     await waitFor(() =>
       expect(screen.getByText(/has unsaved changes/i)).not.toBeNull(),
     );

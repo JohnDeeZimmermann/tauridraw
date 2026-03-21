@@ -29,6 +29,7 @@ import {
   useState,
 } from "react";
 import { loadFromBlob } from "@excalidraw/excalidraw/data/blob";
+import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
 import { useCallbackRefState } from "@excalidraw/excalidraw/hooks/useCallbackRefState";
 import { t } from "@excalidraw/excalidraw/i18n";
 
@@ -271,6 +272,28 @@ const getNextTabIdAfterClose = (
     return tabOrder[1] ?? null;
   }
   return tabOrder[closedIndex - 1] ?? null;
+};
+
+const isSnapshotDirty = (
+  session: DocumentTabSession,
+  elements: readonly OrderedExcalidrawElement[],
+  appState: AppState,
+  files: BinaryFiles,
+) => {
+  const currentSerialized = serializeAsJSON(
+    elements,
+    restoreAppState(appState, null),
+    files,
+    "local",
+  );
+  const savedSerialized = serializeAsJSON(
+    session.snapshot.elements,
+    session.snapshot.appState,
+    session.snapshot.files,
+    "local",
+  );
+
+  return currentSerialized !== savedSerialized;
 };
 
 const ExcalidrawWrapper = () => {
@@ -688,7 +711,7 @@ const ExcalidrawWrapper = () => {
       const session = documentsRef.current.get(activeDocumentId);
       if (session) {
         session.documentName = normalizeDocumentName(appState.name);
-        session.isDirty = true;
+        session.isDirty = isSnapshotDirty(session, elements, appState, _files);
         documentsRef.current.set(session.id, session);
         syncTabSummary(session);
       }

@@ -16,6 +16,7 @@ import { isDevEnv } from "@excalidraw/common";
 
 import type { Theme } from "@excalidraw/element/types";
 import type { WindowBarMode } from "../tauri/windowChrome";
+import type { WindowChromeColors } from "../windowChromeColors";
 
 import { LanguageList } from "../app-language/LanguageList";
 
@@ -23,6 +24,7 @@ import { saveDebugState } from "./DebugCanvas";
 
 export const AppMainMenu: React.FC<{
   menuBarContainer: HTMLElement | null;
+  chromeColors: WindowChromeColors;
   theme: Theme | "system";
   setTheme: (theme: Theme | "system") => void;
   refresh: () => void;
@@ -62,6 +64,7 @@ export const AppMainMenu: React.FC<{
             onToggle={() => {
               setOpenDesktopMenu((current) => (current === id ? null : id));
             }}
+            data-open={isOpen ? "true" : "false"}
           >
             {title}
           </DropdownMenu.Trigger>
@@ -84,7 +87,20 @@ export const AppMainMenu: React.FC<{
 
   const desktopMenuBar = props.menuBarContainer
     ? createPortal(
-        <div className="desktop-menu-bar" role="menubar" aria-label="Application menu">
+        <div
+          className="desktop-menu-bar"
+          role="menubar"
+          aria-label="Application menu"
+          style={
+            {
+              "--desktop-menu-bg": props.chromeColors.background,
+              "--desktop-menu-fg": props.chromeColors.foreground,
+              "--desktop-menu-border": props.chromeColors.border,
+              "--desktop-menu-hover-bg": props.chromeColors.tabBackground,
+              "--desktop-menu-active-bg": props.chromeColors.tabBackgroundActive,
+            } as React.CSSProperties
+          }
+        >
           {renderDesktopMenu(
             "file",
             "File",

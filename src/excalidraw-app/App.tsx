@@ -1155,6 +1155,7 @@ const ExcalidrawWrapper = () => {
         >
           <AppMainMenu
             menuBarContainer={menuBarContainer}
+            chromeColors={chromeColors}
             theme={appTheme}
             setTheme={(theme) => setAppTheme(theme)}
             refresh={() => forceRefresh((prev) => !prev)}

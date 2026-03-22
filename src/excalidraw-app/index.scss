@@ -27,10 +27,7 @@
 .desktop-menu-bar__host {
   display: flex;
   align-items: center;
-  min-height: 28px;
-  padding: 2px 8px;
-  background: var(--tauri-titlebar-bg);
-  border-bottom: 1px solid var(--tauri-titlebar-border);
+  padding: 0;
   position: relative;
   z-index: 40;
 }
@@ -48,30 +45,51 @@
 }
 
 .desktop-menu-bar {
+  --desktop-menu-bg: #eceff4;
+  --desktop-menu-fg: #1c2430;
+  --desktop-menu-border: rgba(28, 36, 48, 0.1);
+  --desktop-menu-hover-bg: rgba(28, 36, 48, 0.06);
+  --desktop-menu-active-bg: rgba(28, 36, 48, 0.12);
+
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--desktop-menu-bg);
+  border-bottom: 1px solid var(--desktop-menu-border);
+  color: var(--desktop-menu-fg);
 }
 
 .desktop-menu-bar .dropdown-menu-button.desktop-menu-bar__trigger {
   width: auto;
-  height: 24px;
+  height: auto;
   min-width: 0;
-  padding: 0 10px;
-  border-radius: 6px;
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   background: transparent;
-  color: var(--tauri-titlebar-fg);
+  box-shadow: none;
+  color: var(--desktop-menu-fg);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
+  transition: background-color 120ms ease;
 }
 
 .desktop-menu-bar .dropdown-menu-button.desktop-menu-bar__trigger:hover {
-  background: rgba(28, 36, 48, 0.1);
+  background: var(--desktop-menu-hover-bg);
+}
+
+.desktop-menu-bar
+  .dropdown-menu-button.desktop-menu-bar__trigger[data-open="true"] {
+  background: var(--desktop-menu-active-bg);
+  border-color: var(--desktop-menu-border);
 }
 
 .desktop-menu-bar .dropdown-menu-button.desktop-menu-bar__trigger:focus-visible {
-  box-shadow: 0 0 0 2px var(--color-brand-active);
+  outline: 2px solid var(--color-brand-active);
+  outline-offset: -1px;
 }
 
 .desktop-menu-bar__dropdown {

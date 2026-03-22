@@ -1,5 +1,5 @@
 # Tauridraw
-This is a desktop version of Excalidraw using Tauri. 
+This is a desktop version of Excalidraw using Tauri. The Excalidraw license notice is found in src/.
 It it highly custom and specifically tuned to my personal preferences.
 
 ## Key Features
@@ -19,6 +19,17 @@ tauridraw lets you choose between the custom window bar and the OS-managed windo
 `Preferences` -> `Use custom window bar`
 
 The preference is saved and applied after you restart tauridraw.
+
+## Usage
+For a simple dev build run 
+```
+yarn tauri dev
+```
+
+If you want to package the application (e.g. as an AppImage) run
+```
+yarn tauri build --bundles appimage
+```
 
 ## AI disclaimer
 

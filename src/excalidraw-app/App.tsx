@@ -317,9 +317,9 @@ const isSnapshotDirty = (
     "local",
   );
   const savedSerialized = serializeAsJSON(
-    session.snapshot.elements,
-    session.snapshot.appState,
-    session.snapshot.files,
+    session.savedSnapshot.elements,
+    session.savedSnapshot.appState,
+    session.savedSnapshot.files,
     "local",
   );
 
@@ -659,7 +659,7 @@ const ExcalidrawWrapper = () => {
         latestSession.filePath = result.filePath;
         latestSession.documentName = result.documentName;
         latestSession.isDirty = false;
-        latestSession.snapshot = cloneDocumentSceneSnapshot({
+        const savedSnapshot = cloneDocumentSceneSnapshot({
           ...latestSession.snapshot,
           appState: restoreAppState(
             {
@@ -669,6 +669,8 @@ const ExcalidrawWrapper = () => {
             null,
           ),
         });
+        latestSession.snapshot = savedSnapshot;
+        latestSession.savedSnapshot = cloneDocumentSceneSnapshot(savedSnapshot);
 
         documentsRef.current.set(documentId, latestSession);
         syncTabSummary(latestSession);
@@ -737,6 +739,9 @@ const ExcalidrawWrapper = () => {
       );
       initialSession.isDirty = false;
       initialSession.snapshot = createSnapshotFromScene(data.scene);
+      initialSession.savedSnapshot = cloneDocumentSceneSnapshot(
+        initialSession.snapshot,
+      );
       documentsRef.current.set(initialSession.id, initialSession);
       syncTabSummary(initialSession);
       if (activeDocumentId === initialSession.id) {
@@ -764,6 +769,7 @@ const ExcalidrawWrapper = () => {
           );
           session.isDirty = false;
           session.snapshot = createSnapshotFromScene(data.scene);
+          session.savedSnapshot = cloneDocumentSceneSnapshot(session.snapshot);
           upsertDocumentSession(session);
 
           if (!tabOrder.includes(targetId)) {

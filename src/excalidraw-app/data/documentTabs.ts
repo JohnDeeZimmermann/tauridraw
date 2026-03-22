@@ -17,6 +17,7 @@ export type DocumentTabSession = {
   documentName: string;
   isDirty: boolean;
   snapshot: DocumentSceneSnapshot;
+  savedSnapshot: DocumentSceneSnapshot;
 };
 
 export type DocumentTabSummary = Pick<
@@ -64,12 +65,18 @@ export const createDocumentTabSession = (opts?: {
   documentName?: string | null;
   isDirty?: boolean;
   snapshot?: DocumentSceneSnapshot;
+  savedSnapshot?: DocumentSceneSnapshot;
 }): DocumentTabSession => ({
   id: opts?.id ?? createDocumentTabId(),
   filePath: opts?.filePath ?? null,
   documentName: normalizeDocumentName(opts?.documentName),
   isDirty: opts?.isDirty ?? false,
-  snapshot: opts?.snapshot ?? createBlankDocumentSnapshot(),
+  snapshot: cloneDocumentSceneSnapshot(
+    opts?.snapshot ?? createBlankDocumentSnapshot(),
+  ),
+  savedSnapshot: cloneDocumentSceneSnapshot(
+    opts?.savedSnapshot ?? opts?.snapshot ?? createBlankDocumentSnapshot(),
+  ),
 });
 
 export const getDocumentTabSummary = (

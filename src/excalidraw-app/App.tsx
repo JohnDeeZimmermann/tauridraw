@@ -66,7 +66,6 @@ import CustomStats from "./CustomStats";
 import { Provider, appJotaiStore } from "./app-jotai";
 import { AppFooter } from "./components/AppFooter";
 import { AppMainMenu } from "./components/AppMainMenu";
-import { AppWelcomeScreen } from "./components/AppWelcomeScreen";
 import { DirtyTabDialog } from "./components/DirtyTabDialog";
 import { DocumentTabs } from "./components/DocumentTabs";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
@@ -1157,7 +1156,6 @@ const ExcalidrawWrapper = () => {
               void handleWindowBarModeChange(mode);
             }}
           />
-          <AppWelcomeScreen onOpenDocument={() => void handleOpenDocument()} />
           <OverwriteConfirmDialog>
             <OverwriteConfirmDialog.Actions.ExportToImage />
             <OverwriteConfirmDialog.Action

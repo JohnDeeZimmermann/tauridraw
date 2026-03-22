@@ -296,6 +296,7 @@ export const ColorPicker = ({
   }, [appState.openPopup]);
   const stylesPanelMode = useStylesPanelMode();
   const isCompactMode = stylesPanelMode !== "full";
+  const showTopPicks = !isCompactMode || type === "canvasBackground";
 
   return (
     <div>
@@ -303,10 +304,10 @@ export const ColorPicker = ({
         role="dialog"
         aria-modal="true"
         className={clsx("color-picker-container", {
-          "color-picker-container--no-top-picks": isCompactMode,
+          "color-picker-container--no-top-picks": !showTopPicks,
         })}
       >
-        {!isCompactMode && (
+        {showTopPicks && (
           <TopPicks
             activeColor={color}
             onChange={onChange}
@@ -314,7 +315,7 @@ export const ColorPicker = ({
             topPicks={topPicks}
           />
         )}
-        {!isCompactMode && <ButtonSeparator />}
+        {showTopPicks && <ButtonSeparator />}
         <Popover.Root
           open={appState.openPopup === type}
           onOpenChange={(open) => {

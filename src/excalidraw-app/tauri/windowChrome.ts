@@ -56,11 +56,8 @@ export const closeWindow = async (): Promise<void> => {
   try {
     await currentWindow.close();
   } catch {
-    try {
-      await currentWindow.destroy();
-    } catch {
-      // noop: safe fallback outside a native window context
-    }
+    // Let Tauri/native teardown own the close lifecycle. Forcing a destroy()
+    // after close() fails can race shutdown and double-free native resources.
   }
 };
 

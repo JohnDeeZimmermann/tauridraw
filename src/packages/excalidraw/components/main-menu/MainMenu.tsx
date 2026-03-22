@@ -20,12 +20,14 @@ const MainMenu = Object.assign(
     ({
       children,
       onSelect,
+      hideTrigger = false,
     }: {
       children?: React.ReactNode;
       /**
        * Called when any menu item is selected (clicked on).
        */
       onSelect?: (event: Event) => void;
+      hideTrigger?: boolean;
     }) => {
       const { MainMenuTunnel } = useTunnels();
       const editorInterface = useEditorInterface();
@@ -34,41 +36,45 @@ const MainMenu = Object.assign(
 
       return (
         <MainMenuTunnel.In>
-          <DropdownMenu open={appState.openMenu === "canvas"}>
-            <DropdownMenu.Trigger
-              onToggle={() => {
-                setAppState({
-                  openMenu: appState.openMenu === "canvas" ? null : "canvas",
-                  openPopup: null,
-                  openDialog: null,
-                });
-              }}
-              data-testid="main-menu-trigger"
-              className="main-menu-trigger"
-            >
-              {HamburgerMenuIcon}
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content
-              onClickOutside={() => setAppState({ openMenu: null })}
-              onSelect={composeEventHandlers(onSelect, () => {
-                setAppState({ openMenu: null });
-              })}
-              className="main-menu"
-              align="start"
-            >
-              {children}
-              {editorInterface.formFactor === "phone" &&
-                appState.collaborators.size > 0 && (
-                  <fieldset className="UserList-Wrapper">
-                    <legend>{t("labels.collaborators")}</legend>
-                    <UserList
-                      mobile={true}
-                      collaborators={appState.collaborators}
-                      userToFollow={appState.userToFollow?.socketId || null}
-                    />
-                  </fieldset>
-                )}
-            </DropdownMenu.Content>
+          <DropdownMenu open={!hideTrigger && appState.openMenu === "canvas"}>
+            {!hideTrigger && (
+              <DropdownMenu.Trigger
+                onToggle={() => {
+                  setAppState({
+                    openMenu: appState.openMenu === "canvas" ? null : "canvas",
+                    openPopup: null,
+                    openDialog: null,
+                  });
+                }}
+                data-testid="main-menu-trigger"
+                className="main-menu-trigger"
+              >
+                {HamburgerMenuIcon}
+              </DropdownMenu.Trigger>
+            )}
+            {!hideTrigger && (
+              <DropdownMenu.Content
+                onClickOutside={() => setAppState({ openMenu: null })}
+                onSelect={composeEventHandlers(onSelect, () => {
+                  setAppState({ openMenu: null });
+                })}
+                className="main-menu"
+                align="start"
+              >
+                {children}
+                {editorInterface.formFactor === "phone" &&
+                  appState.collaborators.size > 0 && (
+                    <fieldset className="UserList-Wrapper">
+                      <legend>{t("labels.collaborators")}</legend>
+                      <UserList
+                        mobile={true}
+                        collaborators={appState.collaborators}
+                        userToFollow={appState.userToFollow?.socketId || null}
+                      />
+                    </fieldset>
+                  )}
+              </DropdownMenu.Content>
+            )}
           </DropdownMenu>
         </MainMenuTunnel.In>
       );

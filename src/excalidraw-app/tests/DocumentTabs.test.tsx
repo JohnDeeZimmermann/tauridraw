@@ -296,8 +296,7 @@ describe("document tabs", () => {
     mockWindowBarSettings("custom");
     await render(<ExcalidrawApp />);
 
-    fireEvent.click(screen.getByTestId("main-menu-trigger"));
-    fireEvent.click(screen.getByRole("menuitem", { name: /preferences/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Preferences" }));
     const settingItem = await screen.findByText("Use custom window bar");
     fireEvent.click(settingItem);
 

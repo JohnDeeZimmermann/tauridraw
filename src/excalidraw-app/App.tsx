@@ -440,6 +440,9 @@ const ExcalidrawWrapper = () => {
     documentId: DocumentTabId;
     isSaving: boolean;
   } | null>(null);
+  const [menuBarContainer, setMenuBarContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
   const programmaticChangeDepthRef = useRef(0);
 
   const runAsProgrammaticSceneMutation = useCallback(
@@ -1097,6 +1100,10 @@ const ExcalidrawWrapper = () => {
         />
       )}
       {effectiveWindowBarMode === "custom" && <TauriResizeHandles />}
+      <div
+        className={`desktop-menu-bar__host excalidraw theme--${editorTheme}`}
+        ref={setMenuBarContainer}
+      />
       <DocumentTabs
         tabs={renderedTabs}
         activeTabId={activeDocumentId}
@@ -1147,6 +1154,7 @@ const ExcalidrawWrapper = () => {
           }}
         >
           <AppMainMenu
+            menuBarContainer={menuBarContainer}
             theme={appTheme}
             setTheme={(theme) => setAppTheme(theme)}
             refresh={() => forceRefresh((prev) => !prev)}

@@ -24,6 +24,60 @@
   min-height: 0;
 }
 
+.desktop-menu-bar__host {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 8px;
+  background: var(--tauri-titlebar-bg);
+  border-bottom: 1px solid var(--tauri-titlebar-border);
+  position: relative;
+  z-index: 40;
+}
+
+.desktop-menu-bar__host.excalidraw {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  height: auto;
+  width: 100%;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.desktop-menu-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.desktop-menu-bar .dropdown-menu-button.desktop-menu-bar__trigger {
+  width: auto;
+  height: 24px;
+  min-width: 0;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tauri-titlebar-fg);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.desktop-menu-bar .dropdown-menu-button.desktop-menu-bar__trigger:hover {
+  background: rgba(28, 36, 48, 0.1);
+}
+
+.desktop-menu-bar .dropdown-menu-button.desktop-menu-bar__trigger:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-brand-active);
+}
+
+.desktop-menu-bar__dropdown {
+  z-index: var(--zIndex-ui-main-menu);
+}
+
 .document-tabs {
   --document-tabs-bg: #eceff4;
   --document-tabs-border: rgba(28, 36, 48, 0.1);

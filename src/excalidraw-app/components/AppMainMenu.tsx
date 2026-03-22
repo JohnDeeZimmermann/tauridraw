@@ -5,6 +5,7 @@ import {
   save,
   saveAs,
 } from "@excalidraw/excalidraw/components/icons";
+import DropdownMenuItemCheckbox from "@excalidraw/excalidraw/components/dropdownMenu/DropdownMenuItemCheckbox";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import { useI18n } from "@excalidraw/excalidraw/i18n";
 import React from "react";
@@ -12,6 +13,7 @@ import React from "react";
 import { isDevEnv } from "@excalidraw/common";
 
 import type { Theme } from "@excalidraw/element/types";
+import type { WindowBarMode } from "../tauri/windowChrome";
 
 import { LanguageList } from "../app-language/LanguageList";
 
@@ -25,6 +27,9 @@ export const AppMainMenu: React.FC<{
   onOpenDocument: () => void;
   onSaveDocument: () => void;
   onSaveAsDocument: () => void;
+  showWindowBarPreference: boolean;
+  windowBarMode: WindowBarMode;
+  onWindowBarModeChange: (mode: WindowBarMode) => void;
 }> = React.memo((props) => {
   const { t } = useI18n();
 
@@ -82,7 +87,22 @@ export const AppMainMenu: React.FC<{
         </MainMenu.Item>
       )}
       <MainMenu.Separator />
-      <MainMenu.DefaultItems.Preferences />
+      <MainMenu.DefaultItems.Preferences
+        additionalItems={
+          props.showWindowBarPreference ? (
+            <DropdownMenuItemCheckbox
+              checked={props.windowBarMode === "custom"}
+              onSelect={() => {
+                props.onWindowBarModeChange(
+                  props.windowBarMode === "custom" ? "native" : "custom",
+                );
+              }}
+            >
+              Use custom window bar
+            </DropdownMenuItemCheckbox>
+          ) : null
+        }
+      />
       <MainMenu.DefaultItems.ToggleTheme
         allowSystemTheme
         theme={props.theme}

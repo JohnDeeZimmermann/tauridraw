@@ -19,7 +19,7 @@ import {
   isDevEnv,
 } from "@excalidraw/common";
 import polyfill from "@excalidraw/excalidraw/polyfill";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { loadFromBlob } from "@excalidraw/excalidraw/data/blob";
 import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
 import { useCallbackRefState } from "@excalidraw/excalidraw/hooks/useCallbackRefState";
@@ -100,7 +100,10 @@ import {
   normalizeDocumentName,
 } from "./data/documentTabs";
 import { getLoadedSceneAppState } from "./sceneAppState";
-import { getUseCustomTitlebar } from "./tauri/windowChrome";
+import {
+  getWindowBarSettings,
+  setWindowBarMode,
+} from "./tauri/windowChrome";
 import { getWindowChromeColors } from "./windowChromeColors";
 
 import type {
@@ -109,6 +112,10 @@ import type {
   DocumentTabSession,
   DocumentTabSummary,
 } from "./data/documentTabs";
+import type {
+  DesktopPlatform,
+  WindowBarMode,
+} from "./tauri/windowChrome";
 
 polyfill();
 
@@ -331,7 +338,12 @@ const isPlaceholderDocumentSession = (session: DocumentTabSession) => {
 
 const ExcalidrawWrapper = () => {
   const [errorMessage, setErrorMessage] = useState("");
-  const [useCustomTitlebar, setUseCustomTitlebar] = useState(false);
+  const [effectiveWindowBarMode, setEffectiveWindowBarMode] =
+    useState<WindowBarMode>("native");
+  const [savedWindowBarMode, setSavedWindowBarMode] =
+    useState<WindowBarMode | null>(null);
+  const [desktopPlatform, setDesktopPlatform] =
+    useState<DesktopPlatform | null>(null);
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
@@ -360,11 +372,23 @@ const ExcalidrawWrapper = () => {
 
   useEffect(() => {
     let active = true;
-    void getUseCustomTitlebar().then((enabled) => {
-      if (active) {
-        setUseCustomTitlebar(enabled);
-      }
-    });
+    void getWindowBarSettings()
+      .then((snapshot) => {
+        if (!active) {
+          return;
+        }
+        setEffectiveWindowBarMode(snapshot.mode);
+        setSavedWindowBarMode(snapshot.mode);
+        setDesktopPlatform(snapshot.platform);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setEffectiveWindowBarMode("native");
+        setSavedWindowBarMode(null);
+        setDesktopPlatform(null);
+      });
     return () => {
       active = false;
     };
@@ -807,6 +831,22 @@ const ExcalidrawWrapper = () => {
     );
   };
 
+  const handleWindowBarModeChange = useCallback(
+    async (mode: WindowBarMode) => {
+      try {
+        await setWindowBarMode(mode);
+        setSavedWindowBarMode(mode);
+        excalidrawAPI?.setToast({
+          message: "Window bar preference saved. Restart tauridraw to apply.",
+          closable: true,
+        });
+      } catch (error: any) {
+        setErrorMessage(error?.message || "Failed to save window bar settings");
+      }
+    },
+    [excalidrawAPI],
+  );
+
   const closeDocumentById = useCallback(
     async (documentId: DocumentTabId) => {
       const nextTabId = getNextTabIdAfterClose(tabOrder, documentId);
@@ -964,7 +1004,7 @@ const ExcalidrawWrapper = () => {
     await saveDocumentById(activeDocumentId);
   }, [activeDocumentId, saveDocumentById]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey) {
         return;
@@ -1043,14 +1083,15 @@ const ExcalidrawWrapper = () => {
 
   return (
     <div className="excalidraw-app">
-      {useCustomTitlebar && (
+      {effectiveWindowBarMode === "custom" && desktopPlatform && (
         <TauriTitleBar
           title="tauridraw"
           subtitle={activeTabSummary?.documentName || DEFAULT_DOCUMENT_NAME}
           chromeColors={chromeColors}
+          platform={desktopPlatform}
         />
       )}
-      {useCustomTitlebar && <TauriResizeHandles />}
+      {effectiveWindowBarMode === "custom" && <TauriResizeHandles />}
       <DocumentTabs
         tabs={renderedTabs}
         activeTabId={activeDocumentId}
@@ -1108,6 +1149,13 @@ const ExcalidrawWrapper = () => {
             onOpenDocument={() => void handleOpenDocument()}
             onSaveDocument={() => void handleSaveDocument()}
             onSaveAsDocument={() => void handleSaveAsDocument()}
+            showWindowBarPreference={
+              savedWindowBarMode !== null && desktopPlatform !== null
+            }
+            windowBarMode={savedWindowBarMode ?? "native"}
+            onWindowBarModeChange={(mode) => {
+              void handleWindowBarModeChange(mode);
+            }}
           />
           <AppWelcomeScreen onOpenDocument={() => void handleOpenDocument()} />
           <OverwriteConfirmDialog>

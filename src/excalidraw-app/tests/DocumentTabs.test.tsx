@@ -48,6 +48,29 @@ vi.mock("../data/nativeFileSystem", () => {
 });
 
 describe("document tabs", () => {
+  const mockWindowBarSettings = (
+    mode: "custom" | "native",
+    platform: "linux" | "windows" | "macos" = "linux",
+  ) => {
+    fileSystemMocks.getCurrentWindow.mockReturnValue({
+      minimize: vi.fn(),
+      close: vi.fn(),
+      toggleMaximize: vi.fn(),
+      startDragging: vi.fn(),
+      startResizeDragging: vi.fn(),
+      setCursorIcon: vi.fn(),
+    } as any);
+    fileSystemMocks.invoke.mockImplementation((command: string) => {
+      if (command === "get_window_bar_settings") {
+        return Promise.resolve({ mode, platform });
+      }
+      if (command === "set_window_bar_mode") {
+        return Promise.resolve(null);
+      }
+      return Promise.resolve(null);
+    });
+  };
+
   const setTabRects = (tabWidth = 120, tabHeight = 32, startLeft = 16) => {
     const tabElements = Array.from(
       document.querySelectorAll<HTMLElement>(".document-tabs__tab"),
@@ -122,20 +145,29 @@ describe("document tabs", () => {
 
   const createNamedTabs = async () => {
     API.updateScene({
+      elements: [API.createElement({ type: "rectangle", width: 100 })],
       appState: { name: "one" },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /one/i })).toBeInTheDocument(),
+    );
 
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
     API.updateScene({
+      elements: [API.createElement({ type: "rectangle", width: 120 })],
       appState: { name: "two" },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /two/i })).toBeInTheDocument(),
+    );
 
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(3));
     API.updateScene({
+      elements: [API.createElement({ type: "rectangle", width: 140 })],
       appState: { name: "three" },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
@@ -201,8 +233,7 @@ describe("document tabs", () => {
 
   it("syncs the custom title bar and tab bar to the rendered canvas color in dark theme", async () => {
     window.localStorage.setItem(STORAGE_KEYS.LOCAL_STORAGE_THEME, THEME.DARK);
-    fileSystemMocks.getCurrentWindow.mockReturnValue({} as any);
-    fileSystemMocks.invoke.mockResolvedValue(true);
+    mockWindowBarSettings("custom");
 
     await render(<ExcalidrawApp />);
 
@@ -235,6 +266,54 @@ describe("document tabs", () => {
     expect(
       screen.getByRole("tablist").style.getPropertyValue("--document-tabs-bg"),
     ).not.toBe(rawCanvasColor);
+  });
+
+  it("renders custom title bar and resize handles when startup mode is custom", async () => {
+    mockWindowBarSettings("custom");
+    await render(<ExcalidrawApp />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("banner", { name: "Window title bar" }),
+      ).toBeInTheDocument(),
+    );
+    expect(document.querySelector(".tauri-resize-handles")).not.toBeNull();
+  });
+
+  it("does not render custom title bar or resize handles when startup mode is native", async () => {
+    mockWindowBarSettings("native");
+    await render(<ExcalidrawApp />);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("banner", { name: "Window title bar" }),
+      ).toBeNull(),
+    );
+    expect(document.querySelector(".tauri-resize-handles")).toBeNull();
+  });
+
+  it("persists window bar preference from Preferences and shows restart toast without changing active chrome", async () => {
+    mockWindowBarSettings("custom");
+    await render(<ExcalidrawApp />);
+
+    fireEvent.click(screen.getByTestId("main-menu-trigger"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /preferences/i }));
+    const settingItem = await screen.findByText("Use custom window bar");
+    fireEvent.click(settingItem);
+
+    await waitFor(() =>
+      expect(fileSystemMocks.invoke).toHaveBeenCalledWith(
+        "set_window_bar_mode",
+        { mode: "native" },
+      ),
+    );
+    await screen.findByText(
+      "Window bar preference saved. Restart tauridraw to apply.",
+    );
+    expect(
+      screen.getByRole("banner", { name: "Window title bar" }),
+    ).toBeInTheDocument();
+    expect(document.querySelector(".tauri-resize-handles")).not.toBeNull();
   });
 
   it("restores each tab's unsaved canvas background color when switching tabs", async () => {
@@ -348,9 +427,13 @@ describe("document tabs", () => {
     await render(<ExcalidrawApp />);
 
     API.updateScene({
+      elements: [API.createElement({ type: "rectangle", width: 120 })],
       appState: { name: "seed" },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /seed/i })).toBeInTheDocument(),
+    );
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
 
@@ -490,9 +573,13 @@ describe("document tabs", () => {
     await render(<ExcalidrawApp />);
 
     API.updateScene({
+      elements: [API.createElement({ type: "rectangle", width: 120 })],
       appState: { name: "seed" },
       captureUpdate: CaptureUpdateAction.IMMEDIATELY,
     });
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /seed/i })).toBeInTheDocument(),
+    );
     fireEvent.keyDown(window, { key: "n", ctrlKey: true });
     await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(2));
 

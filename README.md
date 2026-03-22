@@ -6,10 +6,10 @@ This template should help get you started developing with Tauri, React and Types
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
-## Linux Title Bar Fallback
+## Window Bar Preference
 
-On Linux, tauridraw uses a custom 24px title bar by default to reduce height.
+tauridraw lets you choose between the custom window bar and the OS-managed window bar from the app menu:
 
-To force native window decorations (KDE/WM title bar), set:
+`Preferences` -> `Use custom window bar`
 
-`TAURIDRAW_FORCE_NATIVE_TITLEBAR=1`
+The preference is saved and applied after you restart tauridraw.

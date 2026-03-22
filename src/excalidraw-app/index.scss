@@ -231,6 +231,66 @@
   white-space: nowrap;
 }
 
+.tauri-titlebar__mac-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 10px;
+  padding-right: 6px;
+}
+
+.tauri-titlebar__mac-control {
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 12px;
+  outline: none;
+  padding: 0;
+  position: relative;
+  width: 12px;
+}
+
+.tauri-titlebar__mac-control::after {
+  border-radius: 999px;
+  content: "";
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  transition: opacity 120ms ease;
+}
+
+.tauri-titlebar__mac-control:hover::after {
+  opacity: 1;
+}
+
+.tauri-titlebar__mac-control:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-brand-active);
+}
+
+.tauri-titlebar__mac-control--close {
+  background: #ff5f57;
+}
+
+.tauri-titlebar__mac-control--close::after {
+  background: #e0433d;
+}
+
+.tauri-titlebar__mac-control--minimize {
+  background: #ffbd2e;
+}
+
+.tauri-titlebar__mac-control--minimize::after {
+  background: #e0a626;
+}
+
+.tauri-titlebar__mac-control--zoom {
+  background: #28c840;
+}
+
+.tauri-titlebar__mac-control--zoom::after {
+  background: #21ad37;
+}
+
 .tauri-resize-handles {
   inset: 0;
   pointer-events: none;

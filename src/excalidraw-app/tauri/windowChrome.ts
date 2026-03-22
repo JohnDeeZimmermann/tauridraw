@@ -5,6 +5,13 @@ import {
   type Window,
 } from "@tauri-apps/api/window";
 
+export type WindowBarMode = "custom" | "native";
+export type DesktopPlatform = "linux" | "windows" | "macos";
+export type WindowBarSettingsSnapshot = {
+  mode: WindowBarMode;
+  platform: DesktopPlatform;
+};
+
 type ResizeDirection =
   | "East"
   | "North"
@@ -23,16 +30,21 @@ const getCurrentAppWindow = (): Window | null => {
   }
 };
 
-export const getUseCustomTitlebar = async (): Promise<boolean> => {
+export const getWindowBarSettings =
+  async (): Promise<WindowBarSettingsSnapshot> => {
+    if (!getCurrentAppWindow()) {
+      throw new Error("not running in tauri");
+    }
+
+    return invoke<WindowBarSettingsSnapshot>("get_window_bar_settings");
+  };
+
+export const setWindowBarMode = async (mode: WindowBarMode): Promise<void> => {
   if (!getCurrentAppWindow()) {
-    return false;
+    throw new Error("not running in tauri");
   }
 
-  try {
-    return await invoke<boolean>("use_custom_titlebar");
-  } catch {
-    return false;
-  }
+  await invoke("set_window_bar_mode", { mode });
 };
 
 export const closeWindow = async (): Promise<void> => {
@@ -60,6 +72,19 @@ export const startWindowDrag = async (): Promise<void> => {
 
   try {
     await currentWindow.startDragging();
+  } catch {
+    // noop
+  }
+};
+
+export const minimizeWindow = async (): Promise<void> => {
+  const currentWindow = getCurrentAppWindow();
+  if (!currentWindow) {
+    return;
+  }
+
+  try {
+    await currentWindow.minimize();
   } catch {
     // noop
   }

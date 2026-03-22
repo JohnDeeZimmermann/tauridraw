@@ -2,22 +2,28 @@ import type { CSSProperties } from "react";
 
 import {
   closeWindow,
+  minimizeWindow,
   setWindowCursor,
   toggleWindowMaximize,
 } from "../tauri/windowChrome";
+import type { DesktopPlatform } from "../tauri/windowChrome";
 import type { WindowChromeColors } from "../windowChromeColors";
 
 type TauriTitleBarProps = {
   title: string;
   subtitle?: string;
   chromeColors: WindowChromeColors;
+  platform: DesktopPlatform;
 };
 
 export const TauriTitleBar = ({
   title,
   subtitle,
   chromeColors,
+  platform,
 }: TauriTitleBarProps) => {
+  const isMacos = platform === "macos";
+
   return (
     <div
       className="tauri-titlebar"
@@ -35,6 +41,49 @@ export const TauriTitleBar = ({
         } as CSSProperties
       }
     >
+      {isMacos && (
+        <div className="tauri-titlebar__mac-controls">
+          <button
+            type="button"
+            className="tauri-titlebar__mac-control tauri-titlebar__mac-control--close"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={() => {
+              void closeWindow();
+            }}
+            aria-label="Close window"
+            title="Close"
+          />
+          <button
+            type="button"
+            className="tauri-titlebar__mac-control tauri-titlebar__mac-control--minimize"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={() => {
+              void minimizeWindow();
+            }}
+            aria-label="Minimize window"
+            title="Minimize"
+          />
+          <button
+            type="button"
+            className="tauri-titlebar__mac-control tauri-titlebar__mac-control--zoom"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={() => {
+              void toggleWindowMaximize();
+            }}
+            aria-label="Zoom window"
+            title="Zoom"
+          />
+        </div>
+      )}
       <div
         className="tauri-titlebar__drag-region"
         data-tauri-drag-region
@@ -64,21 +113,23 @@ export const TauriTitleBar = ({
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        className="tauri-titlebar__close"
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onClick={() => {
-          void closeWindow();
-        }}
-        aria-label="Close window"
-        title="Close"
-      >
-        <span aria-hidden="true">×</span>
-      </button>
+      {!isMacos && (
+        <button
+          type="button"
+          className="tauri-titlebar__close"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={() => {
+            void closeWindow();
+          }}
+          aria-label="Close window"
+          title="Close"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      )}
     </div>
   );
 };

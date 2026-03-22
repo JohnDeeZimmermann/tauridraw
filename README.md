@@ -1,10 +1,16 @@
-# Tauri + React + Typescript
+# Tauridraw
+This is a desktop version of Excalidraw using Tauri. 
+It it highly custom and specifically tuned to my personal preferences.
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+## Key Features
 
-## Recommended IDE Setup
+The core of the application consists of the free and open source version of Excalidraw. 
+There are, however, a few key changes: 
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+* Local-only: All external services are removed
+* Native file browser support
+* Multiple tab support
+* Application menu bar instead of the top left burger menu
 
 ## Window Bar Preference
 
@@ -13,3 +19,13 @@ tauridraw lets you choose between the custom window bar and the OS-managed windo
 `Preferences` -> `Use custom window bar`
 
 The preference is saved and applied after you restart tauridraw.
+
+## AI disclaimer
+
+This application was 99% vibe coded using Codex while I was sick. 
+This served as an experiment of how far vibe coding can take me. The code is a bit rough and there are small bugs.
+Certain features (such as making use of KDEs global menu) the AI was unable to 
+implement which is why I might revist the codebase in the future. 
+
+*For the purposes of transparency, I opt to add an AI disclaimer to all my repositories which indicates the degree
+of which AI was used.*

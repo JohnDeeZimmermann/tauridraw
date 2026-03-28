@@ -7,6 +7,7 @@ import {
 
 export type WindowBarMode = "custom" | "native";
 export type DesktopPlatform = "linux" | "windows" | "macos";
+export type AutosaveIntervalMs = 0 | 1000 | 3000 | 5000 | 10000;
 export type WindowBarSettingsSnapshot = {
   mode: WindowBarMode;
   platform: DesktopPlatform;
@@ -45,6 +46,24 @@ export const setWindowBarMode = async (mode: WindowBarMode): Promise<void> => {
   }
 
   await invoke("set_window_bar_mode", { mode });
+};
+
+export const getAutosaveIntervalMs = async (): Promise<AutosaveIntervalMs> => {
+  if (!getCurrentAppWindow()) {
+    throw new Error("not running in tauri");
+  }
+
+  return invoke<AutosaveIntervalMs>("get_autosave_interval_ms");
+};
+
+export const setAutosaveIntervalMs = async (
+  intervalMs: AutosaveIntervalMs,
+): Promise<void> => {
+  if (!getCurrentAppWindow()) {
+    throw new Error("not running in tauri");
+  }
+
+  await invoke("set_autosave_interval_ms", { intervalMs });
 };
 
 export const closeWindow = async (): Promise<void> => {

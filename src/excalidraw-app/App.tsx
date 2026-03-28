@@ -100,7 +100,9 @@ import {
 } from "./data/documentTabs";
 import { getLoadedSceneAppState } from "./sceneAppState";
 import {
+  getAutosaveIntervalMs,
   getWindowBarSettings,
+  setAutosaveIntervalMs,
   setWindowBarMode,
 } from "./tauri/windowChrome";
 import { getWindowChromeColors } from "./windowChromeColors";
@@ -112,6 +114,7 @@ import type {
   DocumentTabSummary,
 } from "./data/documentTabs";
 import type {
+  AutosaveIntervalMs,
   DesktopPlatform,
   WindowBarMode,
 } from "./tauri/windowChrome";
@@ -343,6 +346,8 @@ const ExcalidrawWrapper = () => {
     useState<WindowBarMode | null>(null);
   const [desktopPlatform, setDesktopPlatform] =
     useState<DesktopPlatform | null>(null);
+  const [autosaveIntervalMs, setAutosaveIntervalMsState] =
+    useState<AutosaveIntervalMs>(0);
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
@@ -388,6 +393,23 @@ const ExcalidrawWrapper = () => {
         setSavedWindowBarMode(null);
         setDesktopPlatform(null);
       });
+
+    void getAutosaveIntervalMs()
+      .then((intervalMs) => {
+        if (!active) {
+          return;
+        }
+
+        setAutosaveIntervalMsState(intervalMs);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        setAutosaveIntervalMsState(0);
+      });
+
     return () => {
       active = false;
     };
@@ -444,6 +466,7 @@ const ExcalidrawWrapper = () => {
     null,
   );
   const programmaticChangeDepthRef = useRef(0);
+  const autosaveInFlightRef = useRef<Promise<boolean> | null>(null);
 
   const runAsProgrammaticSceneMutation = useCallback(
     async (callback: () => void | Promise<void>) => {
@@ -855,6 +878,61 @@ const ExcalidrawWrapper = () => {
     [excalidrawAPI],
   );
 
+  const handleAutosaveIntervalMsChange = useCallback(
+    async (intervalMs: AutosaveIntervalMs) => {
+      try {
+        await setAutosaveIntervalMs(intervalMs);
+        setAutosaveIntervalMsState(intervalMs);
+      } catch (error: any) {
+        const message =
+          (typeof error === "string" ? error : error?.message) ||
+          "Failed to save autosave settings";
+        setErrorMessage(message);
+      }
+    },
+    [],
+  );
+
+  const autosaveDocumentIfNeeded = useCallback(
+    async (documentId: DocumentTabId | null) => {
+      if (!documentId || autosaveIntervalMs === 0) {
+        return false;
+      }
+
+      const session = documentsRef.current.get(documentId);
+      if (!session || !session.isDirty || !session.filePath) {
+        return false;
+      }
+
+      if (autosaveInFlightRef.current) {
+        return autosaveInFlightRef.current;
+      }
+
+      const autosavePromise = saveDocumentById(documentId).finally(() => {
+        if (autosaveInFlightRef.current === autosavePromise) {
+          autosaveInFlightRef.current = null;
+        }
+      });
+      autosaveInFlightRef.current = autosavePromise;
+      return autosavePromise;
+    },
+    [autosaveIntervalMs, saveDocumentById],
+  );
+
+  useEffect(() => {
+    if (autosaveIntervalMs === 0) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void autosaveDocumentIfNeeded(activeDocumentId);
+    }, autosaveIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [activeDocumentId, autosaveDocumentIfNeeded, autosaveIntervalMs]);
+
   const closeDocumentById = useCallback(
     async (documentId: DocumentTabId) => {
       const nextTabId = getNextTabIdAfterClose(tabOrder, documentId);
@@ -916,10 +994,16 @@ const ExcalidrawWrapper = () => {
         return;
       }
 
+      await autosaveDocumentIfNeeded(activeDocumentId);
       commitActiveTabSnapshot();
       await loadTabIntoEditor(documentId);
     },
-    [activeDocumentId, commitActiveTabSnapshot, loadTabIntoEditor],
+    [
+      activeDocumentId,
+      autosaveDocumentIfNeeded,
+      commitActiveTabSnapshot,
+      loadTabIntoEditor,
+    ],
   );
 
   const handleNewDocument = useCallback(async () => {
@@ -930,9 +1014,12 @@ const ExcalidrawWrapper = () => {
       return;
     }
 
+    await autosaveDocumentIfNeeded(activeDocumentId);
     commitActiveTabSnapshot();
     await createAndActivateBlankTab();
   }, [
+    activeDocumentId,
+    autosaveDocumentIfNeeded,
     commitActiveTabSnapshot,
     createAndActivateBlankTab,
     excalidrawAPI,
@@ -952,12 +1039,14 @@ const ExcalidrawWrapper = () => {
       const existingSession = findOpenTabByPath(filePath);
       if (existingSession) {
         if (existingSession.id !== activeDocumentId) {
+          await autosaveDocumentIfNeeded(activeDocumentId);
           commitActiveTabSnapshot();
           await loadTabIntoEditor(existingSession.id);
         }
         return;
       }
 
+      await autosaveDocumentIfNeeded(activeDocumentId);
       commitActiveTabSnapshot();
 
       const result = await loadNativeExcalidrawFile(filePath);
@@ -990,6 +1079,7 @@ const ExcalidrawWrapper = () => {
     }
   }, [
     activeDocumentId,
+    autosaveDocumentIfNeeded,
     commitActiveTabSnapshot,
     excalidrawAPI,
     findOpenTabByPath,
@@ -1169,6 +1259,10 @@ const ExcalidrawWrapper = () => {
             windowBarMode={savedWindowBarMode ?? "native"}
             onWindowBarModeChange={(mode) => {
               void handleWindowBarModeChange(mode);
+            }}
+            autosaveIntervalMs={autosaveIntervalMs}
+            onAutosaveIntervalMsChange={(intervalMs) => {
+              void handleAutosaveIntervalMsChange(intervalMs);
             }}
           />
           <OverwriteConfirmDialog>

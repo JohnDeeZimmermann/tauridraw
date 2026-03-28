@@ -4,9 +4,7 @@ import react from "@vitejs/plugin-react";
 import svgrPlugin from "vite-plugin-svgr";
 import { ViteEjsPlugin } from "vite-plugin-ejs";
 import { createHtmlPlugin } from "vite-plugin-html";
-import { VitePWA } from "vite-plugin-pwa";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(({ mode }) => {
@@ -18,12 +16,6 @@ export default defineConfig(({ mode }) => {
       react(),
       svgrPlugin(),
       ViteEjsPlugin(),
-      VitePWA({
-        registerType: "autoUpdate",
-        devOptions: {
-          enabled: false,
-        },
-      }),
       createHtmlPlugin({
         minify: true,
       }),

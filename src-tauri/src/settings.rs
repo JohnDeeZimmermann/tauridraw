@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
 const SETTINGS_FILE_NAME: &str = "settings.json";
+pub const AUTOSAVE_INTERVAL_DISABLED_MS: u64 = 0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -44,6 +45,7 @@ pub struct WindowBarSettingsSnapshot {
 #[serde(rename_all = "camelCase")]
 struct AppSettings {
     window_bar_mode: Option<WindowBarMode>,
+    autosave_interval_ms: Option<u64>,
 }
 
 pub fn load_window_bar_mode<R: Runtime>(app: &AppHandle<R>) -> io::Result<WindowBarMode> {
@@ -51,10 +53,12 @@ pub fn load_window_bar_mode<R: Runtime>(app: &AppHandle<R>) -> io::Result<Window
     load_window_bar_mode_from_path(&path)
 }
 
-pub fn save_window_bar_mode<R: Runtime>(
-    app: &AppHandle<R>,
-    mode: WindowBarMode,
-) -> io::Result<()> {
+pub fn load_autosave_interval_ms<R: Runtime>(app: &AppHandle<R>) -> io::Result<u64> {
+    let path = settings_path(app)?;
+    load_autosave_interval_ms_from_path(&path)
+}
+
+pub fn save_window_bar_mode<R: Runtime>(app: &AppHandle<R>, mode: WindowBarMode) -> io::Result<()> {
     let path = settings_path(app)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -62,41 +66,70 @@ pub fn save_window_bar_mode<R: Runtime>(
     save_window_bar_mode_to_path(&path, mode)
 }
 
+pub fn save_autosave_interval_ms<R: Runtime>(
+    app: &AppHandle<R>,
+    interval_ms: u64,
+) -> io::Result<()> {
+    let path = settings_path(app)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    save_autosave_interval_ms_to_path(&path, interval_ms)
+}
+
 fn settings_path<R: Runtime>(app: &AppHandle<R>) -> io::Result<PathBuf> {
-    let config_dir = app
-        .path()
-        .app_config_dir()
-        .map_err(io::Error::other)?;
+    let config_dir = app.path().app_config_dir().map_err(io::Error::other)?;
     Ok(config_dir.join(SETTINGS_FILE_NAME))
 }
 
 fn load_window_bar_mode_from_path(path: &Path) -> io::Result<WindowBarMode> {
-    let content = match fs::read_to_string(path) {
-        Ok(content) => content,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            return Ok(WindowBarMode::Custom);
-        }
-        Err(error) => return Ok(or_default(error)),
-    };
-
-    let settings = match serde_json::from_str::<AppSettings>(&content) {
-        Ok(settings) => settings,
-        Err(_) => return Ok(WindowBarMode::Custom),
-    };
-
+    let settings = load_settings_from_path(path)?;
     Ok(settings.window_bar_mode.unwrap_or(WindowBarMode::Custom))
 }
 
 fn save_window_bar_mode_to_path(path: &Path, mode: WindowBarMode) -> io::Result<()> {
-    let settings = AppSettings {
-        window_bar_mode: Some(mode),
+    let mut settings = load_settings_from_path(path)?;
+    settings.window_bar_mode = Some(mode);
+    save_settings_to_path(path, &settings)
+}
+
+fn load_autosave_interval_ms_from_path(path: &Path) -> io::Result<u64> {
+    let settings = load_settings_from_path(path)?;
+    Ok(settings
+        .autosave_interval_ms
+        .filter(|interval_ms| is_valid_autosave_interval_ms(*interval_ms))
+        .unwrap_or(AUTOSAVE_INTERVAL_DISABLED_MS))
+}
+
+fn save_autosave_interval_ms_to_path(path: &Path, interval_ms: u64) -> io::Result<()> {
+    let mut settings = load_settings_from_path(path)?;
+    settings.autosave_interval_ms = Some(interval_ms);
+    save_settings_to_path(path, &settings)
+}
+
+fn load_settings_from_path(path: &Path) -> io::Result<AppSettings> {
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok(AppSettings::default());
+        }
+        Err(error) => return Ok(or_default(error)),
     };
-    let content = serde_json::to_string_pretty(&settings).map_err(io::Error::other)?;
+
+    Ok(serde_json::from_str::<AppSettings>(&content).unwrap_or_default())
+}
+
+fn save_settings_to_path(path: &Path, settings: &AppSettings) -> io::Result<()> {
+    let content = serde_json::to_string_pretty(settings).map_err(io::Error::other)?;
     fs::write(path, content)
 }
 
-fn or_default(_error: io::Error) -> WindowBarMode {
-    WindowBarMode::Custom
+fn or_default(_error: io::Error) -> AppSettings {
+    AppSettings::default()
+}
+
+pub fn is_valid_autosave_interval_ms(interval_ms: u64) -> bool {
+    matches!(interval_ms, 0 | 1000 | 3000 | 5000 | 10000)
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ import {
 } from "@excalidraw/excalidraw/components/icons";
 import DropdownMenu from "@excalidraw/excalidraw/components/dropdownMenu/DropdownMenu";
 import DropdownMenuItemCheckbox from "@excalidraw/excalidraw/components/dropdownMenu/DropdownMenuItemCheckbox";
+import DropdownMenuSub from "@excalidraw/excalidraw/components/dropdownMenu/DropdownMenuSub";
 import { MainMenu } from "@excalidraw/excalidraw/index";
 import { useI18n } from "@excalidraw/excalidraw/i18n";
 import React from "react";
@@ -15,7 +16,7 @@ import { createPortal } from "react-dom";
 import { isDevEnv } from "@excalidraw/common";
 
 import type { Theme } from "@excalidraw/element/types";
-import type { WindowBarMode } from "../tauri/windowChrome";
+import type { AutosaveIntervalMs, WindowBarMode } from "../tauri/windowChrome";
 import type { WindowChromeColors } from "../windowChromeColors";
 
 import { LanguageList } from "../app-language/LanguageList";
@@ -35,6 +36,8 @@ export const AppMainMenu: React.FC<{
   showWindowBarPreference: boolean;
   windowBarMode: WindowBarMode;
   onWindowBarModeChange: (mode: WindowBarMode) => void;
+  autosaveIntervalMs: AutosaveIntervalMs;
+  onAutosaveIntervalMsChange: (intervalMs: AutosaveIntervalMs) => void;
 }> = React.memo((props) => {
   const { t } = useI18n();
   const [openDesktopMenu, setOpenDesktopMenu] = React.useState<
@@ -184,6 +187,48 @@ export const AppMainMenu: React.FC<{
             "preferences",
             "Preferences",
             <>
+              <DropdownMenuSub>
+                <DropdownMenuSub.Trigger>Autosave</DropdownMenuSub.Trigger>
+                <DropdownMenuSub.Content>
+                  {(
+                    [
+                      {
+                        value: 0,
+                        label: "Disabled",
+                      },
+                      {
+                        value: 1000,
+                        label: "1s",
+                      },
+                      {
+                        value: 3000,
+                        label: "3s",
+                      },
+                      {
+                        value: 5000,
+                        label: "5s",
+                      },
+                      {
+                        value: 10000,
+                        label: "10s",
+                      },
+                    ] as const
+                  ).map((option) => (
+                    <DropdownMenuItemCheckbox
+                      key={option.value}
+                      checked={props.autosaveIntervalMs === option.value}
+                      onSelect={() => {
+                        props.onAutosaveIntervalMsChange(
+                          option.value as AutosaveIntervalMs,
+                        );
+                      }}
+                    >
+                      {option.label}
+                    </DropdownMenuItemCheckbox>
+                  ))}
+                </DropdownMenuSub.Content>
+              </DropdownMenuSub>
+              <MainMenu.Separator />
               <MainMenu.DefaultItems.Preferences.ToggleToolLock />
               <MainMenu.DefaultItems.Preferences.ToggleSnapMode />
               <MainMenu.DefaultItems.Preferences.ToggleGridMode />

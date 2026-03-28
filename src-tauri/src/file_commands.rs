@@ -18,8 +18,7 @@ fn validate_excalidraw_path(path: &str) -> Result<(), String> {
 #[tauri::command]
 pub fn read_excalidraw_file(path: String) -> Result<String, String> {
     validate_excalidraw_path(&path)?;
-    fs::read_to_string(&path)
-        .map_err(|error| format!("Failed to read file '{}': {}", path, error))
+    fs::read_to_string(&path).map_err(|error| format!("Failed to read file '{}': {}", path, error))
 }
 
 #[tauri::command]

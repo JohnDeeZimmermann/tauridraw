@@ -17,6 +17,7 @@ import {
   isImageElement,
   isLinearElement,
   isTextElement,
+  isCodeElement,
   isArrowElement,
   hasStrokeColor,
   toolIsArrow,
@@ -105,6 +106,13 @@ export const canChangeStrokeColor = (
   appState: UIAppState,
   targetElements: ExcalidrawElement[],
 ) => {
+  if (
+    appState.activeTool.type === "code" ||
+    targetElements.some((element) => isCodeElement(element))
+  ) {
+    return false;
+  }
+
   let commonSelectedType: ExcalidrawElementType | null =
     targetElements[0]?.type || null;
 
@@ -132,6 +140,29 @@ export const canChangeBackgroundColor = (
     hasBackground(appState.activeTool.type) ||
     targetElements.some((element) => hasBackground(element.type))
   );
+};
+
+const shouldShowFontFamilySelector = (
+  appState: UIAppState,
+  targetElements: ExcalidrawElement[],
+) => {
+  if (appState.activeTool.type === "code") {
+    return false;
+  }
+
+  if (targetElements.length === 0) {
+    return appState.activeTool.type === "text";
+  }
+
+  const selectedTextElements = targetElements.filter((element) =>
+    isTextElement(element),
+  );
+
+  if (selectedTextElements.length === 0) {
+    return false;
+  }
+
+  return selectedTextElements.every((element) => !isCodeElement(element));
 };
 
 export const SelectedShapeActions = ({
@@ -185,6 +216,10 @@ export const SelectedShapeActions = ({
 
   const showAlignActions =
     !isSingleElementBoundContainer && alignActionsPredicate(appState, app);
+  const showFontFamilySelector = shouldShowFontFamilySelector(
+    appState,
+    targetElements,
+  );
 
   return (
     <div className="selected-shape-actions">
@@ -227,7 +262,7 @@ export const SelectedShapeActions = ({
         appState.activeTool.type === "code" ||
         targetElements.some(isTextElement)) && (
         <>
-          {renderAction("changeFontFamily")}
+          {showFontFamilySelector && renderAction("changeFontFamily")}
           {renderAction("changeFontSize")}
           {(appState.activeTool.type === "text" ||
             appState.activeTool.type === "code" ||
@@ -813,6 +848,10 @@ export const CompactShapeActions = ({
     targetElements.length === 1 &&
     isLinearElement(targetElements[0]) &&
     !isElbowArrow(targetElements[0]);
+  const showFontFamilySelector = shouldShowFontFamilySelector(
+    appState,
+    targetElements,
+  );
 
   return (
     <div className="compact-shape-actions">
@@ -858,9 +897,11 @@ export const CompactShapeActions = ({
         appState.activeTool.type === "code" ||
         targetElements.some(isTextElement)) && (
         <>
-          <div className="compact-action-item">
-            {renderAction("changeFontFamily")}
-          </div>
+          {showFontFamilySelector && (
+            <div className="compact-action-item">
+              {renderAction("changeFontFamily")}
+            </div>
+          )}
           <CombinedTextProperties
             appState={appState}
             renderAction={renderAction}
@@ -931,6 +972,10 @@ export const MobileShapeActions = ({
   const showDeleteOutside = ACTIONS_WIDTH >= MIN_WIDTH + ADDITIONAL_WIDTH;
   const showDuplicateOutside =
     ACTIONS_WIDTH >= MIN_WIDTH + 2 * ADDITIONAL_WIDTH;
+  const showFontFamilySelector = shouldShowFontFamilySelector(
+    appState,
+    targetElements,
+  );
 
   return (
     <Island
@@ -994,9 +1039,11 @@ export const MobileShapeActions = ({
           appState.activeTool.type === "code" ||
           targetElements.some(isTextElement)) && (
           <>
-            <div className="compact-action-item">
-              {renderAction("changeFontFamily")}
-            </div>
+            {showFontFamilySelector && (
+              <div className="compact-action-item">
+                {renderAction("changeFontFamily")}
+              </div>
+            )}
             <CombinedTextProperties
               appState={appState}
               renderAction={renderAction}

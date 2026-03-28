@@ -322,7 +322,7 @@ export const actionChangeStrokeColor = register<
           elements,
           appState,
           (el) => {
-            return hasStrokeColor(el.type)
+            return hasStrokeColor(el.type) && el.customData?.kind !== "code"
               ? newElementWith(el, {
                   strokeColor: value.currentItemStrokeColor,
                 })
@@ -1005,6 +1005,7 @@ export const actionChangeFontFamily = register<{
           (oldElement) => {
             if (
               isTextElement(oldElement) &&
+              oldElement.customData?.kind !== "code" &&
               (oldElement.fontFamily !== nextFontFamily ||
                 currentItemFontFamily) // force update on selection
             ) {

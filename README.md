@@ -21,6 +21,9 @@ tauridraw lets you choose between the custom window bar and the OS-managed windo
 The preference is saved and applied after you restart tauridraw.
 
 ## Usage
+Make sure that [Rust](https://rust-lang.org/tools/install/), [Tauri](https://v2.tauri.app/start/) and [Tauri's prerequistes](https://v2.tauri.app/start/prerequisites/) 
+are installed on your system.
+
 For a simple dev build run 
 ```
 yarn tauri dev

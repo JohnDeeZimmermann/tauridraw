@@ -61,6 +61,22 @@ CSS hooks:
   - If trimmed current line ends with `:`, add one extra indent unit (`4` spaces).
 - Implemented in `insertNewlineWithIndent()` inside `textWysiwyg.tsx`.
 
+### Optional Vim Mode
+
+- Code blocks can opt into Vim editing via app preference `codeBlockVimModeEnabled`.
+- This is an editor preference (local app state), not scene data.
+- Implemented in `src/packages/excalidraw/wysiwyg/codeBlockVim.ts` and wired from `textWysiwyg.tsx`.
+
+Supported in basic mode:
+- Modes: `insert`, `normal`, `visual`, `visual block`.
+- Motions: `h`, `j`, `k`, `l`, `f/F/t/T`, `w/W`, `b/B`, `e/E`.
+- Operators/commands: `y`, `d`, `c` (with motions and doubled line variants), `D`, `C`, `s`, `S`, `p`, `o`, `O`.
+- Visual extras: `o`/`O` swap selection ends.
+
+Clipboard model:
+- No registers are implemented.
+- Yanks and puts read/write directly through system clipboard APIs.
+
 ## Syntax Highlighting Engine
 
 File: `src/packages/element/src/codeHighlighting.ts`.

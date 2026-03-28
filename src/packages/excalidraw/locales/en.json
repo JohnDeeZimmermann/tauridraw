@@ -177,7 +177,8 @@
     "tab": "Tab",
     "shapeSwitch": "Switch shape",
     "preferences": "Preferences",
-    "preferences_toolLock": "Tool lock"
+    "preferences_toolLock": "Tool lock",
+    "preferences_codeBlockVimMode": "Code block Vim mode"
   },
   "elementLink": {
     "title": "Link to object",

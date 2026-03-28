@@ -234,6 +234,7 @@ export const AppMainMenu: React.FC<{
               <MainMenu.DefaultItems.Preferences.ToggleGridMode />
               <MainMenu.DefaultItems.Preferences.ToggleZenMode />
               <MainMenu.DefaultItems.Preferences.ToggleViewMode />
+              <MainMenu.DefaultItems.Preferences.ToggleCodeBlockVimMode />
               <MainMenu.DefaultItems.Preferences.ToggleElementProperties />
               {props.showWindowBarPreference ? (
                 <DropdownMenuItemCheckbox

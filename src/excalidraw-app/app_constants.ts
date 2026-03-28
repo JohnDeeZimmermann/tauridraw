@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   LOCAL_STORAGE_ELEMENTS: "excalidraw",
   LOCAL_STORAGE_APP_STATE: "excalidraw-state",
   LOCAL_STORAGE_THEME: "excalidraw-theme",
+  LOCAL_STORAGE_CODE_BLOCK_VIM_MODE: "excalidraw-codeblock-vim-mode",
   LOCAL_STORAGE_DEBUG: "excalidraw-debug",
   VERSION_DATA_STATE: "version-dataState",
   VERSION_FILES: "version-files",

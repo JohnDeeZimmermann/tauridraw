@@ -498,6 +498,26 @@ const PreferencesToggleViewModeItem = () => {
   );
 };
 
+const PreferencesToggleCodeBlockVimModeItem = () => {
+  const { t } = useI18n();
+  const setAppState = useExcalidrawSetAppState();
+  const appState = useUIAppState();
+
+  return (
+    <DropdownMenuItemCheckbox
+      checked={appState.codeBlockVimModeEnabled}
+      onSelect={(event) => {
+        setAppState({
+          codeBlockVimModeEnabled: !appState.codeBlockVimModeEnabled,
+        });
+        event.preventDefault();
+      }}
+    >
+      {t("labels.preferences_codeBlockVimMode")}
+    </DropdownMenuItemCheckbox>
+  );
+};
+
 const PreferencesToggleElementPropertiesItem = () => {
   const { t } = useI18n();
   const actionManager = useExcalidrawActionManager();
@@ -537,6 +557,7 @@ export const Preferences = ({
             <PreferencesToggleGridModeItem />
             <PreferencesToggleZenModeItem />
             <PreferencesToggleViewModeItem />
+            <PreferencesToggleCodeBlockVimModeItem />
             <PreferencesToggleElementPropertiesItem />
           </>
         )}
@@ -551,6 +572,7 @@ Preferences.ToggleSnapMode = PreferencesToggleSnapModeItem;
 Preferences.ToggleGridMode = PreferencesToggleGridModeItem;
 Preferences.ToggleZenMode = PreferencesToggleZenModeItem;
 Preferences.ToggleViewMode = PreferencesToggleViewModeItem;
+Preferences.ToggleCodeBlockVimMode = PreferencesToggleCodeBlockVimModeItem;
 Preferences.ToggleElementProperties = PreferencesToggleElementPropertiesItem;
 
 Preferences.displayName = "Preferences";

@@ -14,6 +14,7 @@ import {
 
 import {
   getTextFromElements,
+  getLineHeightInPx,
   originalContainerCache,
   updateBoundElements,
   updateOriginalContainerCache,
@@ -54,9 +55,11 @@ import type {
 import { actionSaveToActiveFile } from "../actions";
 
 import {
+  copyTextToSystemClipboard,
   parseClipboard,
   parseDataTransferEvent,
   parseDataTransferEventMimeTypes,
+  readSystemClipboard,
 } from "../clipboard";
 import {
   actionDecreaseFontSize,
@@ -72,6 +75,7 @@ import type { ParsedDataTranferList } from "../clipboard";
 
 import type App from "../components/App";
 import type { AppState } from "../types";
+import { createCodeBlockVimController } from "./codeBlockVim";
 
 const getTransform = (
   width: number,
@@ -145,7 +149,87 @@ export const textWysiwyg = ({
 
   let LAST_THEME = app.state.theme;
   const isCodeBlock = isCodeElement(element);
-  let codeOverlay: HTMLPreElement | null = null;
+  const isCodeBlockVimModeEnabled =
+    isCodeBlock && app.state.codeBlockVimModeEnabled;
+  let codeOverlay: HTMLPreElement | undefined;
+  let codeVimCursorLayer: HTMLDivElement | undefined;
+  let codeVimCursor: HTMLDivElement | undefined;
+  let codeVimModeBadge: HTMLDivElement | undefined;
+  let currentCodeVimMode: "insert" | "normal" | "visual" | "visualBlock" =
+    "insert";
+  let latestEditorFont: ReturnType<typeof getFontString> | null = null;
+  let latestLineHeightPx = 0;
+
+  const getCaretLineColumn = (value: string, offset: number) => {
+    const safeOffset = Math.max(0, Math.min(offset, value.length));
+    const before = value.slice(0, safeOffset);
+    const lines = before.split("\n");
+    const line = Math.max(0, lines.length - 1);
+    const column = lines[lines.length - 1]?.length || 0;
+    return { line, column };
+  };
+
+  const updateCodeVimCursor = () => {
+    const cursor = codeVimCursor;
+    const cursorLayer = codeVimCursorLayer;
+    if (!cursor || !cursorLayer || !latestEditorFont) {
+      return;
+    }
+
+    const value = editable.value;
+    const selectionStart = editable.selectionStart;
+    const selectionEnd = editable.selectionEnd;
+    const visualOffset =
+      currentCodeVimMode === "visual" && selectionStart !== selectionEnd
+        ? editable.selectionDirection === "backward"
+          ? selectionStart
+          : selectionEnd
+        : selectionStart;
+    const { line, column } = getCaretLineColumn(value, visualOffset);
+    const currentLine = value.split("\n")[line] || "";
+    const renderColumn =
+      currentCodeVimMode !== "insert" &&
+      currentLine.length > 0 &&
+      column >= currentLine.length
+        ? currentLine.length - 1
+        : column;
+
+    const before = currentLine.slice(0, renderColumn);
+    const nextChar = currentLine[renderColumn] || " ";
+
+    const left = getTextWidth(before, latestEditorFont) - editable.scrollLeft;
+    const top = line * latestLineHeightPx - editable.scrollTop;
+    const charWidth = Math.max(2, getTextWidth(nextChar, latestEditorFont));
+    const cursorWidth =
+      currentCodeVimMode === "insert"
+        ? 2
+        : Math.max(7, Math.min(18, charWidth));
+    const clampedLeft = Math.max(
+      0,
+      Math.min(left, cursorLayer.clientWidth - cursorWidth),
+    );
+
+    cursor.style.left = `${clampedLeft}px`;
+    cursor.style.top = `${top}px`;
+    cursor.style.height = `${latestLineHeightPx}px`;
+    cursor.style.width = `${cursorWidth}px`;
+
+    cursor.classList.toggle(
+      "excalidraw-wysiwyg-code-vim-cursor--insert",
+      currentCodeVimMode === "insert",
+    );
+    cursor.classList.toggle(
+      "excalidraw-wysiwyg-code-vim-cursor--normal",
+      currentCodeVimMode !== "insert",
+    );
+
+    const outOfView =
+      top + latestLineHeightPx < 0 ||
+      top > cursorLayer.clientHeight ||
+      left < -cursorWidth - 8 ||
+      left > cursorLayer.clientWidth + 8;
+    cursor.style.display = outOfView ? "none" : "block";
+  };
 
   const updateWysiwygStyle = () => {
     LAST_THEME = app.state.theme;
@@ -295,6 +379,12 @@ export const textWysiwyg = ({
           : "var(--zIndex-wysiwyg)",
       });
 
+      latestEditorFont = font;
+      latestLineHeightPx = getLineHeightInPx(
+        updatedTextElement.fontSize,
+        updatedTextElement.lineHeight,
+      );
+
       if (codeOverlay && isCodeElement(updatedTextElement)) {
         Object.assign(codeOverlay.style, {
           font,
@@ -324,6 +414,38 @@ export const textWysiwyg = ({
         );
       }
 
+      if (codeVimCursorLayer && isCodeElement(updatedTextElement)) {
+        Object.assign(codeVimCursorLayer.style, {
+          font,
+          lineHeight: updatedTextElement.lineHeight,
+          width: `${width}px`,
+          height: `${height}px`,
+          left: `${viewportX}px`,
+          top: `${viewportY}px`,
+          transform: getTransform(
+            width,
+            height,
+            getTextElementAngle(updatedTextElement, container),
+            appState,
+            maxWidth,
+            editorMaxHeight,
+          ),
+          opacity: updatedTextElement.opacity / 100,
+          maxHeight: `${editorMaxHeight}px`,
+          zIndex: "5",
+        });
+      }
+
+      if (codeVimModeBadge && isCodeElement(updatedTextElement)) {
+        Object.assign(codeVimModeBadge.style, {
+          left: `${viewportX}px`,
+          top: `${Math.max(0, viewportY - 22)}px`,
+          opacity: updatedTextElement.opacity / 100,
+        });
+      }
+
+      updateCodeVimCursor();
+
       editable.scrollTop = 0;
       // For some reason updating font attribute doesn't set font family
       // hence updating font family explicitly for test environment
@@ -345,6 +467,31 @@ export const textWysiwyg = ({
   editable.classList.add("excalidraw-wysiwyg");
   if (isCodeBlock) {
     editable.classList.add("excalidraw-wysiwyg--code");
+  }
+
+  if (isCodeBlockVimModeEnabled) {
+    codeVimModeBadge = document.createElement("div");
+    codeVimModeBadge.classList.add("excalidraw-wysiwyg-code-vim-mode");
+    codeVimModeBadge.dataset.type = "wysiwyg";
+    Object.assign(codeVimModeBadge.style, {
+      position: "absolute",
+      pointerEvents: "none",
+      zIndex: "6",
+    });
+
+    codeVimCursorLayer = document.createElement("div");
+    codeVimCursorLayer.classList.add("excalidraw-wysiwyg-code-vim-cursor-layer");
+    codeVimCursorLayer.dataset.type = "wysiwyg";
+    Object.assign(codeVimCursorLayer.style, {
+      position: "absolute",
+      pointerEvents: "none",
+      overflow: "hidden",
+      zIndex: "5",
+    });
+
+    codeVimCursor = document.createElement("div");
+    codeVimCursor.classList.add("excalidraw-wysiwyg-code-vim-cursor");
+    codeVimCursorLayer.appendChild(codeVimCursor);
   }
 
   let whiteSpace = "pre";
@@ -400,6 +547,7 @@ export const textWysiwyg = ({
   }
 
   editable.value = element.originalText;
+  currentCodeVimMode = editable.value.length > 0 ? "normal" : "insert";
 
   const TAB_SIZE = 4;
   const TAB = " ".repeat(TAB_SIZE);
@@ -446,6 +594,44 @@ export const textWysiwyg = ({
   };
 
   updateWysiwygStyle();
+
+  // using a state variable instead of passing it to the handleSubmit callback
+  // so that we don't need to create separate a callback for event handlers
+  let submittedViaKeyboard = false;
+
+  const codeBlockVimController = isCodeBlockVimModeEnabled
+    ? createCodeBlockVimController({
+        editable,
+        initialMode: editable.value.length > 0 ? "normal" : "insert",
+        onSubmit: () => {
+          submittedViaKeyboard = true;
+          handleSubmit();
+        },
+        onTextChange: () => {
+          editable.dispatchEvent(new Event("input"));
+        },
+        onModeChange: (mode) => {
+          currentCodeVimMode = mode;
+          if (codeVimModeBadge) {
+            codeVimModeBadge.dataset.vimMode = mode;
+            codeVimModeBadge.textContent =
+              mode === "insert" ? "I" : mode === "normal" ? "N" : "V";
+          }
+          updateCodeVimCursor();
+        },
+        onSelectionChange: () => {
+          updateCodeVimCursor();
+        },
+        readClipboardText: async () => {
+          const clipboardData = await readSystemClipboard();
+          const text = clipboardData[MIME_TYPES.text];
+          return typeof text === "string" ? normalizeText(text) : null;
+        },
+        writeClipboardText: async (text) => {
+          await copyTextToSystemClipboard(text);
+        },
+      })
+    : null;
 
   if (onChange) {
     editable.onpaste = async (event) => {
@@ -543,6 +729,7 @@ export const textWysiwyg = ({
         editable.selectionEnd = selectionStart;
       }
       updateCodeOverlay();
+      updateCodeVimCursor();
       onChange(editable.value);
     };
   }
@@ -552,9 +739,22 @@ export const textWysiwyg = ({
       codeOverlay.scrollTop = editable.scrollTop;
       codeOverlay.scrollLeft = editable.scrollLeft;
     }
+    updateCodeVimCursor();
+  };
+
+  editable.onselect = () => {
+    updateCodeVimCursor();
+  };
+
+  editable.onkeyup = () => {
+    updateCodeVimCursor();
   };
 
   editable.onkeydown = (event) => {
+    if (codeBlockVimController?.handleKeyDown(event)) {
+      return;
+    }
+
     if (!event.shiftKey && actionZoomIn.keyTest(event)) {
       event.preventDefault();
       app.actionManager.executeAction(actionZoomIn);
@@ -711,9 +911,6 @@ export const textWysiwyg = ({
     }
   };
 
-  // using a state variable instead of passing it to the handleSubmit callback
-  // so that we don't need to create separate a callback for event handlers
-  let submittedViaKeyboard = false;
   const handleSubmit = () => {
     // prevent double submit
     if (isDestroyed) {
@@ -775,6 +972,8 @@ export const textWysiwyg = ({
     editable.onblur = null;
     editable.oninput = null;
     editable.onkeydown = null;
+    editable.onkeyup = null;
+    editable.onselect = null;
     editable.onscroll = null;
 
     if (observer) {
@@ -791,8 +990,12 @@ export const textWysiwyg = ({
     unsubOnChange();
     unbindOnScroll();
 
+    codeBlockVimController?.destroy();
+
     editable.remove();
     codeOverlay?.remove();
+    codeVimCursorLayer?.remove();
+    codeVimModeBadge?.remove();
   };
 
   const bindBlurEvent = (event?: MouseEvent) => {
@@ -947,7 +1150,14 @@ export const textWysiwyg = ({
   if (codeOverlay) {
     textEditorContainer?.appendChild(codeOverlay);
   }
+  if (codeVimCursorLayer) {
+    textEditorContainer?.appendChild(codeVimCursorLayer);
+  }
+  if (codeVimModeBadge) {
+    textEditorContainer?.appendChild(codeVimModeBadge);
+  }
   textEditorContainer?.appendChild(editable);
+  updateCodeVimCursor();
 
   return handleSubmit;
 };

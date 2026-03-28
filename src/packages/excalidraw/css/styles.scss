@@ -817,7 +817,68 @@ body.excalidraw-cursor-resize * {
   font-variant-ligatures: none;
 }
 
+.excalidraw .excalidraw-wysiwyg--code[data-vim-mode="normal"],
+.excalidraw .excalidraw-wysiwyg--code[data-vim-mode="visual"],
+.excalidraw .excalidraw-wysiwyg--code[data-vim-mode="visualBlock"] {
+  caret-color: transparent !important;
+}
+
 .excalidraw .excalidraw-wysiwyg-code {
   font-variant-ligatures: none;
   user-select: none;
+}
+
+.excalidraw .excalidraw-wysiwyg-code-vim-mode {
+  font-family: "Cascadia Code", monospace;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.28);
+  background: #6d28d9;
+  color: #fff;
+  border-radius: 5px;
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+.excalidraw .excalidraw-wysiwyg-code-vim-mode[data-vim-mode="insert"] {
+  background: #2563eb;
+}
+
+.excalidraw .excalidraw-wysiwyg-code-vim-mode[data-vim-mode="visual"],
+.excalidraw .excalidraw-wysiwyg-code-vim-mode[data-vim-mode="visualBlock"] {
+  background: #ea580c;
+}
+
+.excalidraw .excalidraw-wysiwyg-code-vim-mode[data-vim-mode="normal"] {
+  background: #7e22ce;
+}
+
+.excalidraw .excalidraw-wysiwyg-code-vim-cursor {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 1px;
+  --vim-cursor-solid: rgba(17, 24, 39, 0.95);
+  --vim-cursor-block-fill: rgba(17, 24, 39, 0.18);
+  --vim-cursor-block-stroke: rgba(17, 24, 39, 0.86);
+}
+
+.excalidraw .excalidraw-wysiwyg-code-vim-cursor--insert {
+  background: var(--vim-cursor-solid);
+}
+
+.excalidraw .excalidraw-wysiwyg-code-vim-cursor--normal {
+  background: var(--vim-cursor-block-fill);
+  box-shadow: inset 0 0 0 1px var(--vim-cursor-block-stroke);
+}
+
+.excalidraw.theme--dark .excalidraw-wysiwyg-code-vim-cursor {
+  --vim-cursor-solid: rgba(255, 255, 255, 0.95);
+  --vim-cursor-block-fill: rgba(255, 255, 255, 0.32);
+  --vim-cursor-block-stroke: rgba(255, 255, 255, 0.88);
 }

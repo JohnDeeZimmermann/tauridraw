@@ -8,6 +8,7 @@ type LoadedSceneAppStateOptions = {
   editorTheme: AppState["theme"];
   name?: AppState["name"];
   isLoading?: AppState["isLoading"];
+  codeBlockVimModeEnabled?: AppState["codeBlockVimModeEnabled"];
 };
 
 export const getLoadedSceneAppState = ({
@@ -15,6 +16,7 @@ export const getLoadedSceneAppState = ({
   editorTheme,
   name,
   isLoading = false,
+  codeBlockVimModeEnabled,
 }: LoadedSceneAppStateOptions) => {
   const restoredAppState = restoreAppState(sceneAppState, null);
 
@@ -22,6 +24,9 @@ export const getLoadedSceneAppState = ({
     ...restoredAppState,
     theme: editorTheme,
     isLoading,
+    ...(codeBlockVimModeEnabled !== undefined
+      ? { codeBlockVimModeEnabled }
+      : {}),
     ...(name !== undefined ? { name } : {}),
   };
 };

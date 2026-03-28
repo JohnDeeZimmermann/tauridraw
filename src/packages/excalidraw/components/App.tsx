@@ -5649,7 +5649,9 @@ class App extends React.Component<AppProps, AppState> {
       // caret (i.e. deselect). There's not much use for always selecting
       // the text on edit anyway (and users can select-all from contextmenu
       // if needed)
-      autoSelect: !this.editorInterface.isTouchScreen,
+      autoSelect:
+        !this.editorInterface.isTouchScreen &&
+        !(isCodeElement(element) && this.state.codeBlockVimModeEnabled),
     });
     // deselect all other elements when inserting text
     this.deselectElements();

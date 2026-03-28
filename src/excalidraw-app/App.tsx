@@ -106,6 +106,7 @@ import {
   setWindowBarMode,
 } from "./tauri/windowChrome";
 import { getWindowChromeColors } from "./windowChromeColors";
+import { STORAGE_KEYS } from "./app_constants";
 
 import type {
   DocumentSceneSnapshot,
@@ -157,6 +158,41 @@ window.addEventListener(
 
 let isSelfEmbedding = false;
 
+const getStorage = (): Storage | null => {
+  try {
+    const storage = window.localStorage;
+    if (
+      storage &&
+      typeof storage.getItem === "function" &&
+      typeof storage.setItem === "function"
+    ) {
+      return storage;
+    }
+  } catch {
+    // Ignore storage access failures outside normal browser contexts.
+  }
+
+  return null;
+};
+
+const getStoredCodeBlockVimModeEnabled = (): boolean | null => {
+  const value = getStorage()?.getItem(STORAGE_KEYS.LOCAL_STORAGE_CODE_BLOCK_VIM_MODE);
+  if (value === "true") {
+    return true;
+  }
+  if (value === "false") {
+    return false;
+  }
+  return null;
+};
+
+const setStoredCodeBlockVimModeEnabled = (enabled: boolean) => {
+  getStorage()?.setItem(
+    STORAGE_KEYS.LOCAL_STORAGE_CODE_BLOCK_VIM_MODE,
+    String(enabled),
+  );
+};
+
 if (window.self !== window.top) {
   try {
     const parentUrl = new URL(document.referrer);
@@ -202,6 +238,7 @@ const initializeScene = async (): Promise<
   { scene: ExcalidrawInitialDataState | null } & { isExternalScene: boolean }
 > => {
   const externalUrlMatch = window.location.hash.match(/^#url=(.*)$/);
+  const storedCodeBlockVimModeEnabled = getStoredCodeBlockVimModeEnabled();
 
   let scene: Omit<
     RestoredDataState,
@@ -212,7 +249,14 @@ const initializeScene = async (): Promise<
     scrollToContent?: boolean;
   } = {
     elements: [],
-    appState: restoreAppState(null, null),
+    appState: restoreAppState(
+      storedCodeBlockVimModeEnabled === null
+        ? null
+        : {
+            codeBlockVimModeEnabled: storedCodeBlockVimModeEnabled,
+          },
+      null,
+    ),
   };
 
   if (externalUrlMatch) {
@@ -417,12 +461,17 @@ const ExcalidrawWrapper = () => {
 
   const [excalidrawAPI, excalidrawRefCallback] =
     useCallbackRefState<ExcalidrawImperativeAPI>();
+  const codeBlockVimModePreferenceRef = useRef<boolean | null>(
+    getStoredCodeBlockVimModeEnabled(),
+  );
   const getSceneAppStateForCurrentTheme = useCallback(
     (sceneAppState: RestoredDataState["appState"], name?: AppState["name"]) =>
       getLoadedSceneAppState({
         sceneAppState,
         editorTheme,
         name,
+        codeBlockVimModeEnabled:
+          codeBlockVimModePreferenceRef.current ?? undefined,
       }),
     [editorTheme],
   );
@@ -825,6 +874,11 @@ const ExcalidrawWrapper = () => {
     appState: AppState,
     _files: BinaryFiles,
   ) => {
+    if (codeBlockVimModePreferenceRef.current !== appState.codeBlockVimModeEnabled) {
+      codeBlockVimModePreferenceRef.current = appState.codeBlockVimModeEnabled;
+      setStoredCodeBlockVimModeEnabled(appState.codeBlockVimModeEnabled);
+    }
+
     setActiveViewBackgroundColor(appState.viewBackgroundColor);
     const isProgrammaticChange = programmaticChangeDepthRef.current > 0;
 

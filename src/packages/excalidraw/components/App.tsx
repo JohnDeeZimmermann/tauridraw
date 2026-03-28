@@ -34,6 +34,7 @@ import {
   ELEMENT_TRANSLATE_AMOUNT,
   EVENT,
   FRAME_STYLE,
+  FONT_FAMILY,
   IMAGE_MIME_TYPES,
   IMAGE_RENDER_TIMEOUT,
   LINE_CONFIRM_THRESHOLD,
@@ -155,6 +156,7 @@ import {
   isElbowArrow,
   isFlowchartNodeElement,
   isBindableElement,
+  isCodeElement,
   isTextElement,
   getNormalizedDimensions,
   isElementCompletelyInViewport,
@@ -496,6 +498,9 @@ import type { Action, ActionResult } from "../actions/types";
 
 const AppContext = React.createContext<AppClassProperties>(null!);
 const AppPropsContext = React.createContext<AppProps>(null!);
+
+const isTextLikeTool = (toolType: ToolType | "custom") =>
+  toolType === "text" || toolType === "code";
 
 const editorInterfaceContextInitialValue: EditorInterface = {
   formFactor: "desktop",
@@ -5116,7 +5121,7 @@ class App extends React.Component<AppProps, AppState> {
         }
 
         if (
-          this.state.activeTool.type === "text" ||
+          isTextLikeTool(this.state.activeTool.type) ||
           selectedElements.find(
             (element) =>
               isTextElement(element) ||
@@ -5534,13 +5539,26 @@ class App extends React.Component<AppProps, AppState> {
         // Not sure why we include deleted elements as well hence using deleted elements map
         ...this.scene.getElementsIncludingDeleted().map((_element) => {
           if (_element.id === element.id && isTextElement(_element)) {
-            return newElementWith(_element, {
+            const normalizedElement = isCodeElement(_element)
+              ? newElementWith(_element, {
+                  autoResize: true,
+                  textAlign: "left",
+                  fontFamily: FONT_FAMILY.Cascadia,
+                  customData: {
+                    ..._element.customData,
+                    kind: "code",
+                    language: _element.customData?.language || "python",
+                  },
+                })
+              : _element;
+
+            return newElementWith(normalizedElement, {
               originalText: nextOriginalText,
               isDeleted: isDeleted ?? _element.isDeleted,
               // returns (wrapped) text and new dimensions
               ...refreshTextDimensions(
-                _element,
-                getContainerElement(_element, elementsMap),
+                normalizedElement,
+                getContainerElement(normalizedElement, elementsMap),
                 elementsMap,
                 nextOriginalText,
               ),
@@ -5875,6 +5893,7 @@ class App extends React.Component<AppProps, AppState> {
     insertAtParentCenter = true,
     container,
     autoEdit = true,
+    isCode = false,
   }: {
     /** X position to insert text at */
     sceneX: number;
@@ -5884,6 +5903,7 @@ class App extends React.Component<AppProps, AppState> {
     insertAtParentCenter?: boolean;
     container?: ExcalidrawTextContainer | null;
     autoEdit?: boolean;
+    isCode?: boolean;
   }) => {
     let shouldBindToContainer = false;
 
@@ -5895,7 +5915,7 @@ class App extends React.Component<AppProps, AppState> {
         this.state,
         container,
       );
-    if (container && parentCenterPosition) {
+    if (!isCode && container && parentCenterPosition) {
       const boundTextElementToContainer = getBoundTextElement(
         container,
         this.scene.getNonDeletedElementsMap(),
@@ -5923,8 +5943,12 @@ class App extends React.Component<AppProps, AppState> {
       existingTextElement = this.getTextElementAtPosition(sceneX, sceneY);
     }
 
+    const createCodeElement =
+      isCode || (existingTextElement != null && isCodeElement(existingTextElement));
+
     const fontFamily =
-      existingTextElement?.fontFamily || this.state.currentItemFontFamily;
+      existingTextElement?.fontFamily ||
+      (createCodeElement ? FONT_FAMILY.Cascadia : this.state.currentItemFontFamily);
 
     const lineHeight =
       existingTextElement?.lineHeight || getLineHeight(fontFamily);
@@ -5983,7 +6007,9 @@ class App extends React.Component<AppProps, AppState> {
         text: "",
         fontSize,
         fontFamily,
-        textAlign: parentCenterPosition
+        textAlign: createCodeElement
+          ? "left"
+          : parentCenterPosition
           ? "center"
           : this.state.currentItemTextAlign,
         verticalAlign: parentCenterPosition
@@ -5998,6 +6024,12 @@ class App extends React.Component<AppProps, AppState> {
             : container.angle
           : (0 as Radians),
         frameId: topLayerFrame ? topLayerFrame.id : null,
+        customData: createCodeElement
+          ? {
+              kind: "code",
+              language: "python",
+            }
+          : undefined,
       });
 
     if (!existingTextElement && shouldBindToContainer && container) {
@@ -6765,6 +6797,7 @@ class App extends React.Component<AppProps, AppState> {
         this.state.activeTool.type !== "selection" &&
         this.state.activeTool.type !== "lasso" &&
         this.state.activeTool.type !== "text" &&
+        this.state.activeTool.type !== "code" &&
         this.state.activeTool.type !== "eraser")
     ) {
       return;
@@ -6904,7 +6937,7 @@ class App extends React.Component<AppProps, AppState> {
         !this.state.showHyperlinkPopup
       ) {
         this.setState({ showHyperlinkPopup: "info" });
-      } else if (this.state.activeTool.type === "text") {
+      } else if (isTextLikeTool(this.state.activeTool.type)) {
         setCursor(
           this.interactiveCanvas,
           isTextElement(hitElement) ? CURSOR_TYPE.TEXT : CURSOR_TYPE.CROSSHAIR,
@@ -7370,6 +7403,7 @@ class App extends React.Component<AppProps, AppState> {
       this.state.activeTool.type === "selection" ||
       this.state.activeTool.type === "lasso" ||
       this.state.activeTool.type === "text" ||
+      this.state.activeTool.type === "code" ||
       this.state.activeTool.type === "image";
 
     if (!allowOnPointerDown) {
@@ -7489,7 +7523,7 @@ class App extends React.Component<AppProps, AppState> {
         });
         pointerDownState.hit.wasAddedToSelection = true;
       }
-    } else if (this.state.activeTool.type === "text") {
+    } else if (isTextLikeTool(this.state.activeTool.type)) {
       this.handleTextOnPointerDown(event, pointerDownState);
     } else if (
       this.state.activeTool.type === "arrow" ||
@@ -8389,15 +8423,18 @@ class App extends React.Component<AppProps, AppState> {
     }
     let sceneX = pointerDownState.origin.x;
     let sceneY = pointerDownState.origin.y;
+    const isCodeTool = this.state.activeTool.type === "code";
 
     const element = this.getElementAtPosition(sceneX, sceneY, {
       includeBoundTextElement: true,
     });
 
     // FIXME
-    let container = this.getTextBindableContainerAtPosition(sceneX, sceneY);
+    let container = isCodeTool
+      ? null
+      : this.getTextBindableContainerAtPosition(sceneX, sceneY);
 
-    if (hasBoundTextElement(element)) {
+    if (!isCodeTool && hasBoundTextElement(element)) {
       container = element as ExcalidrawTextContainer;
       sceneX = element.x + element.width / 2;
       sceneY = element.y + element.height / 2;
@@ -8408,6 +8445,7 @@ class App extends React.Component<AppProps, AppState> {
       insertAtParentCenter: !event.altKey,
       container,
       autoEdit: false,
+      isCode: isCodeTool,
     });
 
     resetCursor(this.interactiveCanvas);

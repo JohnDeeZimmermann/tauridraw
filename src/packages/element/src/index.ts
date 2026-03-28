@@ -58,6 +58,7 @@ export * from "./align";
 export * from "./binding";
 export * from "./bounds";
 export * from "./collision";
+export * from "./codeHighlighting";
 export * from "./comparisons";
 export * from "./containerCache";
 export * from "./cropElement";

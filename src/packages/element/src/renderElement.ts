@@ -53,7 +53,9 @@ import {
   getBoundTextMaxWidth,
 } from "./textElement";
 import { getLineHeightInPx } from "./textMeasurements";
+import { getCodeTokenPalette, tokenizeCodeLine } from "./codeHighlighting";
 import {
+  isCodeElement,
   isTextElement,
   isLinearElement,
   isFreeDrawElement,
@@ -555,10 +557,11 @@ const drawElementOnCanvas = (
         context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
         context.save();
         context.font = getFontString(element);
-        context.fillStyle =
+        const textColor =
           renderConfig.theme === THEME.DARK
             ? applyDarkModeFilter(element.strokeColor)
             : element.strokeColor;
+        context.fillStyle = textColor;
         context.textAlign = element.textAlign as CanvasTextAlign;
 
         // Canvas does not support multiline text by default
@@ -582,12 +585,37 @@ const drawElementOnCanvas = (
           lineHeightPx,
         );
 
+        const tokenPalette = isCodeElement(element)
+          ? getCodeTokenPalette(renderConfig.theme, textColor)
+          : null;
+
         for (let index = 0; index < lines.length; index++) {
-          context.fillText(
-            lines[index],
-            horizontalOffset,
-            index * lineHeightPx + verticalOffset,
-          );
+          const y = index * lineHeightPx + verticalOffset;
+
+          if (!tokenPalette) {
+            context.fillText(lines[index], horizontalOffset, y);
+            continue;
+          }
+
+          const line = lines[index];
+          const lineWidth = context.measureText(line).width;
+          const startX =
+            element.textAlign === "center"
+              ? horizontalOffset - lineWidth / 2
+              : element.textAlign === "right"
+              ? horizontalOffset - lineWidth
+              : horizontalOffset;
+
+          let cursorX = startX;
+          context.textAlign = "left";
+
+          for (const token of tokenizeCodeLine(line)) {
+            context.fillStyle = tokenPalette[token.type];
+            context.fillText(token.text, cursorX, y);
+            cursorX += context.measureText(token.text).width;
+          }
+
+          context.fillStyle = textColor;
         }
         context.restore();
         if (shouldTemporarilyAttach) {

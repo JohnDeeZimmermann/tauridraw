@@ -14,6 +14,7 @@ import {
 import { normalizeLink, toValidURL } from "@excalidraw/common";
 import { hashString } from "@excalidraw/element";
 import { getUncroppedWidthAndHeight } from "@excalidraw/element";
+import { getCodeTokenPalette, tokenizeCodeLine } from "@excalidraw/element";
 import {
   createPlaceholderEmbeddableLabel,
   getEmbedLink,
@@ -23,6 +24,7 @@ import { getBoundTextElement, getContainerElement } from "@excalidraw/element";
 import { getLineHeightInPx } from "@excalidraw/element";
 import {
   isArrowElement,
+  isCodeElement,
   isIframeLikeElement,
   isInitializedImageElement,
   isTextElement,
@@ -668,23 +670,36 @@ const renderElementToSvg = (
             : element.textAlign === "right" || direction === "rtl"
             ? "end"
             : "start";
+        const textColor =
+          renderConfig.theme === THEME.DARK
+            ? applyDarkModeFilter(element.strokeColor)
+            : element.strokeColor;
+        const tokenPalette = isCodeElement(element)
+          ? getCodeTokenPalette(renderConfig.theme, textColor)
+          : null;
         for (let i = 0; i < lines.length; i++) {
           const text = svgRoot.ownerDocument.createElementNS(SVG_NS, "text");
-          text.textContent = lines[i];
           text.setAttribute("x", `${horizontalOffset}`);
           text.setAttribute("y", `${i * lineHeightPx + verticalOffset}`);
           text.setAttribute("font-family", getFontFamilyString(element));
           text.setAttribute("font-size", `${element.fontSize}px`);
-          text.setAttribute(
-            "fill",
-            renderConfig.theme === THEME.DARK
-              ? applyDarkModeFilter(element.strokeColor)
-              : element.strokeColor,
-          );
+          text.setAttribute("fill", textColor);
           text.setAttribute("text-anchor", textAnchor);
           text.setAttribute("style", "white-space: pre;");
           text.setAttribute("direction", direction);
           text.setAttribute("dominant-baseline", "alphabetic");
+
+          if (tokenPalette) {
+            for (const token of tokenizeCodeLine(lines[i])) {
+              const tspan = svgRoot.ownerDocument.createElementNS(SVG_NS, "tspan");
+              tspan.textContent = token.text;
+              tspan.setAttribute("fill", tokenPalette[token.type]);
+              text.appendChild(tspan);
+            }
+          } else {
+            text.textContent = lines[i];
+          }
+
           node.appendChild(text);
         }
 

@@ -224,11 +224,13 @@ export const SelectedShapeActions = ({
       )}
 
       {(appState.activeTool.type === "text" ||
+        appState.activeTool.type === "code" ||
         targetElements.some(isTextElement)) && (
         <>
           {renderAction("changeFontFamily")}
           {renderAction("changeFontSize")}
           {(appState.activeTool.type === "text" ||
+            appState.activeTool.type === "code" ||
             suppportsHorizontalAlign(targetElements, elementsMap)) &&
             renderAction("changeTextAlign")}
         </>
@@ -590,9 +592,11 @@ const CombinedTextProperties = ({
           >
             <div className="selected-shape-actions">
               {(appState.activeTool.type === "text" ||
+                appState.activeTool.type === "code" ||
                 targetElements.some(isTextElement)) &&
                 renderAction("changeFontSize")}
               {(appState.activeTool.type === "text" ||
+                appState.activeTool.type === "code" ||
                 suppportsHorizontalAlign(targetElements, elementsMap)) &&
                 renderAction("changeTextAlign")}
               {shouldAllowVerticalAlign(targetElements, elementsMap) &&
@@ -851,6 +855,7 @@ export const CompactShapeActions = ({
 
       {/* Text Properties */}
       {(appState.activeTool.type === "text" ||
+        appState.activeTool.type === "code" ||
         targetElements.some(isTextElement)) && (
         <>
           <div className="compact-action-item">
@@ -986,6 +991,7 @@ export const MobileShapeActions = ({
         />
         {/* Text Properties */}
         {(appState.activeTool.type === "text" ||
+          appState.activeTool.type === "code" ||
           targetElements.some(isTextElement)) && (
           <>
             <div className="compact-action-item">

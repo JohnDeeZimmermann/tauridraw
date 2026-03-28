@@ -11,6 +11,7 @@ There are, however, a few key changes:
 * Native file browser support
 * Multiple tab support
 * Application menu bar instead of the top left burger menu
+* Syntax highlighted code blocks for pseudo-code
 
 ## Window Bar Preference
 

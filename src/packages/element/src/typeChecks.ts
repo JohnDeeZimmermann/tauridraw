@@ -69,6 +69,12 @@ export const isTextElement = (
   return element != null && element.type === "text";
 };
 
+export const isCodeElement = (
+  element: ExcalidrawElement | null,
+): element is ExcalidrawTextElement => {
+  return isTextElement(element) && element.customData?.kind === "code";
+};
+
 export const isFrameElement = (
   element: ExcalidrawElement | null,
 ): element is ExcalidrawFrameElement => {

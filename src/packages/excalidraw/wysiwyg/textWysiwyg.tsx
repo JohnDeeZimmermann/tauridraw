@@ -38,6 +38,9 @@ import { wrapText } from "@excalidraw/element";
 import {
   isArrowElement,
   isBoundToContainer,
+  isCodeElement,
+  highlightCodeAsHtml,
+  getCodeTokenPalette,
   isTextElement,
 } from "@excalidraw/element";
 
@@ -141,6 +144,8 @@ export const textWysiwyg = ({
   };
 
   let LAST_THEME = app.state.theme;
+  const isCodeBlock = isCodeElement(element);
+  let codeOverlay: HTMLPreElement | null = null;
 
   const updateWysiwygStyle = () => {
     LAST_THEME = app.state.theme;
@@ -258,6 +263,11 @@ export const textWysiwyg = ({
       // Make sure text editor height doesn't go beyond viewport
       const editorMaxHeight =
         (appState.height - viewportY) / appState.zoom.value;
+      const textColor =
+        appState.theme === THEME.DARK
+          ? applyDarkModeFilter(updatedTextElement.strokeColor)
+          : updatedTextElement.strokeColor;
+
       Object.assign(editable.style, {
         font,
         // must be defined *after* font ¯\_(ツ)_/¯
@@ -276,13 +286,44 @@ export const textWysiwyg = ({
         ),
         textAlign,
         verticalAlign,
-        color:
-          appState.theme === THEME.DARK
-            ? applyDarkModeFilter(updatedTextElement.strokeColor)
-            : updatedTextElement.strokeColor,
+        color: isCodeElement(updatedTextElement) ? "transparent" : textColor,
+        caretColor: textColor,
         opacity: updatedTextElement.opacity / 100,
         maxHeight: `${editorMaxHeight}px`,
+        zIndex: isCodeElement(updatedTextElement)
+          ? "4"
+          : "var(--zIndex-wysiwyg)",
       });
+
+      if (codeOverlay && isCodeElement(updatedTextElement)) {
+        Object.assign(codeOverlay.style, {
+          font,
+          lineHeight: updatedTextElement.lineHeight,
+          width: `${width}px`,
+          height: `${height}px`,
+          left: `${viewportX}px`,
+          top: `${viewportY}px`,
+          transform: getTransform(
+            width,
+            height,
+            getTextElementAngle(updatedTextElement, container),
+            appState,
+            maxWidth,
+            editorMaxHeight,
+          ),
+          textAlign,
+          verticalAlign,
+          opacity: updatedTextElement.opacity / 100,
+          maxHeight: `${editorMaxHeight}px`,
+          zIndex: "3",
+        });
+
+        codeOverlay.innerHTML = highlightCodeAsHtml(
+          editable.value,
+          getCodeTokenPalette(appState.theme, textColor),
+        );
+      }
+
       editable.scrollTop = 0;
       // For some reason updating font attribute doesn't set font family
       // hence updating font family explicitly for test environment
@@ -302,6 +343,9 @@ export const textWysiwyg = ({
   // prevent line wrapping on Safari
   editable.wrap = "off";
   editable.classList.add("excalidraw-wysiwyg");
+  if (isCodeBlock) {
+    editable.classList.add("excalidraw-wysiwyg--code");
+  }
 
   let whiteSpace = "pre";
   let wordBreak = "normal";
@@ -330,7 +374,77 @@ export const textWysiwyg = ({
     overflowWrap: "break-word",
     boxSizing: "content-box",
   });
+
+  if (isCodeBlock) {
+    codeOverlay = document.createElement("pre");
+    codeOverlay.classList.add("excalidraw-wysiwyg-code");
+    codeOverlay.dataset.type = "wysiwyg";
+    Object.assign(codeOverlay.style, {
+      position: "absolute",
+      display: "inline-block",
+      minHeight: "1em",
+      backfaceVisibility: "hidden",
+      margin: 0,
+      padding: 0,
+      border: 0,
+      outline: 0,
+      background: "transparent",
+      overflow: "hidden",
+      pointerEvents: "none",
+      wordBreak,
+      whiteSpace,
+      overflowWrap: "break-word",
+      boxSizing: "content-box",
+      zIndex: "3",
+    });
+  }
+
   editable.value = element.originalText;
+
+  const TAB_SIZE = 4;
+  const TAB = " ".repeat(TAB_SIZE);
+  const RE_LEADING_TAB = new RegExp(`^ {1,${TAB_SIZE}}`);
+
+  const updateCodeOverlay = () => {
+    if (!codeOverlay) {
+      return;
+    }
+
+    const latestElement = app.scene.getElement<ExcalidrawTextElement>(id);
+    if (!latestElement || !isCodeElement(latestElement)) {
+      return;
+    }
+
+    const textColor =
+      app.state.theme === THEME.DARK
+        ? applyDarkModeFilter(latestElement.strokeColor)
+        : latestElement.strokeColor;
+
+    codeOverlay.innerHTML = highlightCodeAsHtml(
+      editable.value,
+      getCodeTokenPalette(app.state.theme, textColor),
+    );
+  };
+
+  const insertNewlineWithIndent = () => {
+    const { selectionStart, selectionEnd, value } = editable;
+    const before = value.slice(0, selectionStart);
+    const after = value.slice(selectionEnd);
+
+    const lineStart = before.lastIndexOf("\n") + 1;
+    const currentLine = before.slice(lineStart);
+    const leadingIndent = currentLine.match(/^[ ]*/)?.[0] || "";
+    const shouldIncreaseIndent = currentLine.trimEnd().endsWith(":");
+    const nextIndent = shouldIncreaseIndent ? `${leadingIndent}${TAB}` : leadingIndent;
+    const insertion = `\n${nextIndent}`;
+
+    editable.value = `${before}${insertion}${after}`;
+
+    const nextCursor = before.length + insertion.length;
+    editable.selectionStart = nextCursor;
+    editable.selectionEnd = nextCursor;
+  };
+
   updateWysiwygStyle();
 
   if (onChange) {
@@ -428,9 +542,17 @@ export const textWysiwyg = ({
         editable.selectionStart = selectionStart;
         editable.selectionEnd = selectionStart;
       }
+      updateCodeOverlay();
       onChange(editable.value);
     };
   }
+
+  editable.onscroll = () => {
+    if (codeOverlay) {
+      codeOverlay.scrollTop = editable.scrollTop;
+      codeOverlay.scrollLeft = editable.scrollLeft;
+    }
+  };
 
   editable.onkeydown = (event) => {
     if (!event.shiftKey && actionZoomIn.keyTest(event)) {
@@ -464,6 +586,13 @@ export const textWysiwyg = ({
       }
       submittedViaKeyboard = true;
       handleSubmit();
+    } else if (isCodeBlock && event.key === KEYS.ENTER) {
+      event.preventDefault();
+      if (event.isComposing || event.keyCode === 229) {
+        return;
+      }
+      insertNewlineWithIndent();
+      editable.dispatchEvent(new Event("input"));
     } else if (
       event.key === KEYS.TAB ||
       (event[KEYS.CTRL_OR_CMD] &&
@@ -483,9 +612,6 @@ export const textWysiwyg = ({
     }
   };
 
-  const TAB_SIZE = 4;
-  const TAB = " ".repeat(TAB_SIZE);
-  const RE_LEADING_TAB = new RegExp(`^ {1,${TAB_SIZE}}`);
   const indent = () => {
     const { selectionStart, selectionEnd } = editable;
     const linesStartIndices = getSelectedLinesStartIndices();
@@ -649,6 +775,7 @@ export const textWysiwyg = ({
     editable.onblur = null;
     editable.oninput = null;
     editable.onkeydown = null;
+    editable.onscroll = null;
 
     if (observer) {
       observer.disconnect();
@@ -665,6 +792,7 @@ export const textWysiwyg = ({
     unbindOnScroll();
 
     editable.remove();
+    codeOverlay?.remove();
   };
 
   const bindBlurEvent = (event?: MouseEvent) => {
@@ -813,9 +941,13 @@ export const textWysiwyg = ({
     window.addEventListener("pointerdown", onPointerDown, { capture: true });
   });
   window.addEventListener("beforeunload", handleSubmit);
-  excalidrawContainer
-    ?.querySelector(".excalidraw-textEditorContainer")!
-    .appendChild(editable);
+  const textEditorContainer = excalidrawContainer?.querySelector(
+    ".excalidraw-textEditorContainer",
+  );
+  if (codeOverlay) {
+    textEditorContainer?.appendChild(codeOverlay);
+  }
+  textEditorContainer?.appendChild(editable);
 
   return handleSubmit;
 };

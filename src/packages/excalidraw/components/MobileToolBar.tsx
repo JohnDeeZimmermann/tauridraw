@@ -27,6 +27,7 @@ import {
   EllipseIcon,
   LineIcon,
   TextIcon,
+  codeIcon,
   ImageIcon,
   frameToolIcon,
   EmbedIcon,
@@ -152,17 +153,23 @@ export const MobileToolBar = ({
   const ADDITIONAL_WIDTH = WIDTH + GAP;
 
   const showTextToolOutside = toolbarWidth >= MIN_WIDTH + 1 * ADDITIONAL_WIDTH;
-  const showImageToolOutside = toolbarWidth >= MIN_WIDTH + 2 * ADDITIONAL_WIDTH;
-  const showFrameToolOutside = toolbarWidth >= MIN_WIDTH + 3 * ADDITIONAL_WIDTH;
+  const showCodeToolOutside = toolbarWidth >= MIN_WIDTH + 2 * ADDITIONAL_WIDTH;
+  const showImageToolOutside = toolbarWidth >= MIN_WIDTH + 3 * ADDITIONAL_WIDTH;
+  const showFrameToolOutside = toolbarWidth >= MIN_WIDTH + 4 * ADDITIONAL_WIDTH;
 
   const extraTools = [
     "text",
+    "code",
+    "image",
     "frame",
     "embeddable",
     "laser",
     "magicframe",
   ].filter((tool) => {
     if (showTextToolOutside && tool === "text") {
+      return false;
+    }
+    if (showCodeToolOutside && tool === "code") {
       return false;
     }
     if (showImageToolOutside && tool === "image") {
@@ -177,6 +184,8 @@ export const MobileToolBar = ({
   const extraIcon = extraToolSelected
     ? activeTool.type === "text"
       ? TextIcon
+      : activeTool.type === "code"
+      ? codeIcon
       : activeTool.type === "image"
       ? ImageIcon
       : activeTool.type === "frame"
@@ -342,6 +351,23 @@ export const MobileToolBar = ({
         />
       )}
 
+      {/* Code Tool */}
+      {showCodeToolOutside && (
+        <ToolButton
+          className={clsx({
+            active: activeTool.type === "code",
+          })}
+          type="radio"
+          icon={codeIcon}
+          checked={activeTool.type === "code"}
+          name="editor-current-shape"
+          title={`${capitalizeString(t("toolBar.code"))}`}
+          aria-label={capitalizeString(t("toolBar.code"))}
+          data-testid="toolbar-code"
+          onChange={() => handleToolChange("code")}
+        />
+      )}
+
       {/* Image */}
       {showImageToolOutside && (
         <ToolButton
@@ -414,6 +440,18 @@ export const MobileToolBar = ({
               selected={activeTool.type === "text"}
             >
               {t("toolBar.text")}
+            </DropdownMenu.Item>
+          )}
+
+          {!showCodeToolOutside && (
+            <DropdownMenu.Item
+              onSelect={() => app.setActiveTool({ type: "code" })}
+              icon={codeIcon}
+              shortcut={KEYS.C.toLocaleUpperCase()}
+              data-testid="toolbar-code"
+              selected={activeTool.type === "code"}
+            >
+              {t("toolBar.code")}
             </DropdownMenu.Item>
           )}
 

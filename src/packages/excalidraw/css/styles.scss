@@ -811,3 +811,13 @@ body.excalidraw-cursor-resize * {
     font-family: "Assistant";
   }
 }
+
+.excalidraw .excalidraw-wysiwyg--code {
+  -webkit-text-fill-color: transparent;
+  font-variant-ligatures: none;
+}
+
+.excalidraw .excalidraw-wysiwyg-code {
+  font-variant-ligatures: none;
+  user-select: none;
+}

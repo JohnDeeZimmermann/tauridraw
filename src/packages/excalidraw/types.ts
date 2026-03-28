@@ -150,6 +150,7 @@ export type ToolType =
   | "line"
   | "freedraw"
   | "text"
+  | "code"
   | "image"
   | "eraser"
   | "hand"

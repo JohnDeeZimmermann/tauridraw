@@ -102,6 +102,7 @@ export const AllowedExcalidrawActiveTools: Record<
   selection: true,
   lasso: true,
   text: true,
+  code: true,
   rectangle: true,
   diamond: true,
   ellipse: true,
@@ -398,6 +399,20 @@ export const restoreElement = (
         autoResize: element.autoResize ?? true,
         lineHeight,
       });
+
+      if (element.customData?.kind === "code") {
+        element = {
+          ...element,
+          fontFamily: FONT_FAMILY.Cascadia,
+          textAlign: "left",
+          autoResize: true,
+          customData: {
+            ...element.customData,
+            kind: "code",
+            language: element.customData?.language || "python",
+          },
+        };
+      }
 
       // if empty text, mark as deleted. We keep in array
       // for data integrity purposes (collab etc.)
